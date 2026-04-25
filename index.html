@@ -1,0 +1,2059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Family Budget">
+<title>Family Budget</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root {
+  --bg: #0f172a;
+  --bg2: #1e293b;
+  --bg3: #334155;
+  --accent: #38bdf8;
+  --accent2: #0ea5e9;
+  --green: #4ade80;
+  --red: #f87171;
+  --amber: #fbbf24;
+  --text: #f1f5f9;
+  --text2: #94a3b8;
+  --text3: #64748b;
+  --card: #1e293b;
+  --border: #334155;
+  --radius: 14px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+/* ── Layout ── */
+#app { display: flex; flex-direction: column; height: 100%; max-width: 540px; margin: 0 auto; }
+#content { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px 16px calc(70px + var(--safe-bottom)) 16px; scroll-behavior: smooth; }
+#content::-webkit-scrollbar { display: none; }
+
+/* ── Nav ── */
+#nav {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 540px;
+  display: flex; background: var(--bg2); border-top: 1px solid var(--border);
+  padding-bottom: var(--safe-bottom); z-index: 100;
+}
+.nav-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 6px 2px; border: none; background: none; color: var(--text3); cursor: pointer;
+  font-size: 9px; font-weight: 500; gap: 2px; transition: color 0.15s;
+}
+.nav-btn .icon { font-size: 19px; line-height: 1; }
+.nav-btn.active { color: var(--accent); }
+
+/* ── Insights ── */
+.trend-row { display:flex; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); gap:8px; }
+.trend-row:last-child { border-bottom:none; }
+.trend-cat { flex:1; font-size:13px; font-weight:500; }
+.trend-amounts { font-size:12px; color:var(--text2); text-align:right; min-width:80px; }
+.trend-badge { font-size:11px; font-weight:700; padding:2px 7px; border-radius:20px; min-width:48px; text-align:center; }
+.trend-up { background:rgba(248,113,113,0.15); color:var(--red); }
+.trend-down { background:rgba(74,222,128,0.15); color:var(--green); }
+.trend-same { background:rgba(148,163,184,0.15); color:var(--text3); }
+.tip-item { display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); font-size:13px; line-height:1.5; }
+.tip-item:last-child { border-bottom:none; }
+.tip-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+.health-bar-wrap { margin-bottom:10px; }
+.health-bar-label { display:flex; justify-content:space-between; font-size:12px; color:var(--text2); margin-bottom:4px; }
+.health-bar-track { height:8px; border-radius:4px; background:var(--border); overflow:hidden; }
+.health-bar-fill { height:100%; border-radius:4px; transition:width 0.4s; }
+.budget-row { display:flex; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); gap:8px; font-size:13px; }
+.budget-row:last-child { border-bottom:none; }
+.budget-label { flex:1; }
+.budget-label small { display:block; font-size:11px; color:var(--text3); margin-top:1px; }
+.budget-amount { font-weight:600; color:var(--accent); min-width:60px; text-align:right; }
+.savings-tier { border-radius:10px; padding:12px 14px; margin-bottom:8px; }
+.savings-tier h4 { font-size:13px; font-weight:700; margin-bottom:4px; }
+.savings-tier .amount { font-size:22px; font-weight:800; }
+.savings-tier .detail { font-size:12px; margin-top:3px; opacity:0.85; }
+
+/* ── Cards ── */
+.card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+.card-sm { padding: 12px; }
+h2 { font-size: 18px; font-weight: 700; margin-bottom: 14px; }
+h3 { font-size: 14px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+
+/* ── Balance Hero ── */
+.balance-hero { text-align: center; padding: 24px 16px; background: linear-gradient(135deg, #0f2942, #1e3a5f); border-radius: var(--radius); margin-bottom: 12px; }
+.balance-label { font-size: 13px; color: var(--text2); margin-bottom: 4px; }
+.balance-amount { font-size: 48px; font-weight: 800; letter-spacing: -2px; line-height: 1; }
+.balance-amount.positive { color: var(--green); }
+.balance-amount.warning { color: var(--amber); }
+.balance-amount.negative { color: var(--red); }
+.balance-meta { font-size: 12px; color: var(--text2); margin-top: 8px; }
+
+/* ── Stats row ── */
+.stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.stat-card { background: var(--card); border-radius: 12px; padding: 12px 10px; text-align: center; }
+.stat-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; }
+.stat-value { font-size: 18px; font-weight: 700; margin-top: 3px; }
+
+/* ── Bill items ── */
+.bill-item {
+  display: flex; align-items: center; gap: 10px; padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.bill-item:last-child { border-bottom: none; padding-bottom: 0; }
+.bill-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+
+/* ── Paid checkbox ── */
+.paid-check {
+  width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--border);
+  background: none; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0; transition: all 0.15s; font-size: 14px;
+}
+.paid-check.checked { background: var(--green); border-color: var(--green); }
+.paid-check:active { transform: scale(0.88); }
+.bill-info { flex: 1; min-width: 0; }
+.bill-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bill-meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.bill-right { text-align: right; flex-shrink: 0; }
+.bill-amount { font-size: 15px; font-weight: 700; }
+.bill-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; margin-top: 3px; }
+.badge-urgent { background: rgba(248,113,113,0.2); color: var(--red); }
+.badge-soon { background: rgba(251,191,36,0.2); color: var(--amber); }
+.badge-ok { background: rgba(74,222,128,0.2); color: var(--green); }
+.badge-paid { background: rgba(148,163,184,0.2); color: var(--text3); }
+
+/* ── Progress bar ── */
+.progress-wrap { background: var(--bg3); border-radius: 99px; height: 8px; overflow: hidden; margin-top: 8px; }
+.progress-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+
+/* ── Spend form ── */
+.spend-form { background: var(--bg2); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+.form-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.input-wrap { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.input-wrap label { font-size: 11px; color: var(--text2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+input, select, textarea {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
+  color: var(--text); padding: 10px 12px; font-size: 15px; width: 100%; outline: none;
+  transition: border-color 0.15s;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+input[type=number] { -moz-appearance: textfield; }
+input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 12px 20px; border-radius: 12px; font-size: 15px; font-weight: 600;
+  border: none; cursor: pointer; transition: opacity 0.15s, transform 0.1s; width: 100%;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--accent2); color: #fff; }
+.btn-secondary { background: var(--bg3); color: var(--text); }
+.btn-danger { background: rgba(248,113,113,0.15); color: var(--red); }
+.btn-sm { padding: 8px 14px; font-size: 13px; width: auto; border-radius: 8px; }
+
+/* ── Spend log ── */
+.spend-entry {
+  display: flex; align-items: center; gap: 10px; padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.spend-entry:last-child { border-bottom: none; }
+.spend-cat { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.spend-info { flex: 1; min-width: 0; }
+.spend-name { font-size: 14px; font-weight: 500; }
+.spend-date { font-size: 12px; color: var(--text3); }
+.spend-amt { font-size: 15px; font-weight: 700; color: var(--red); }
+
+/* ── Income items ── */
+.income-item {
+  display: flex; align-items: center; justify-content: space-between; padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+}
+.income-item:last-child { border-bottom: none; }
+.income-name { font-size: 14px; font-weight: 600; }
+.income-meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.income-amount { font-size: 15px; font-weight: 700; color: var(--green); }
+
+/* ── Toggle ── */
+.toggle-wrap { display: flex; gap: 4px; background: var(--bg2); padding: 3px; border-radius: 10px; margin-bottom: 14px; }
+.toggle-btn { flex: 1; padding: 8px; border-radius: 8px; border: none; background: none; color: var(--text2); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.toggle-btn.active { background: var(--bg3); color: var(--text); }
+
+/* ── Checkbox ── */
+.check-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.check-row input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--accent); cursor: pointer; }
+
+/* ── Settings ── */
+.setting-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.setting-item:last-child { border-bottom: none; }
+.setting-label { font-size: 15px; font-weight: 500; }
+.setting-desc { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.setting-action { flex-shrink: 0; }
+
+/* ── Chip / Tag ── */
+.chip { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+
+/* ── Alert banner ── */
+.alert { border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; font-size: 13px; display: flex; align-items: flex-start; gap: 10px; }
+.alert-icon { font-size: 18px; flex-shrink: 0; }
+.alert-urgent { background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.25); }
+.alert-warn { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.25); }
+.alert-info { background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.2); }
+
+/* ── Modal ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal { background: var(--bg2); border-radius: 20px 20px 0 0; padding: 20px 16px calc(20px + var(--safe-bottom)); width: 100%; max-width: 540px; transform: translateY(100%); transition: transform 0.3s cubic-bezier(.32,.72,0,1); max-height: 90vh; overflow-y: auto; }
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal-handle { width: 36px; height: 4px; background: var(--bg3); border-radius: 99px; margin: 0 auto 18px; }
+.modal h2 { margin-bottom: 16px; }
+
+/* ── Pill row ── */
+.pill-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.pill { padding: 6px 14px; border-radius: 99px; font-size: 13px; font-weight: 600; border: 2px solid var(--border); background: none; color: var(--text2); cursor: pointer; transition: all 0.15s; }
+.pill.active { border-color: var(--accent); color: var(--accent); background: rgba(56,189,248,0.1); }
+
+/* ── Setup screen ── */
+#setup-screen { position: fixed; inset: 0; background: var(--bg); z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; text-align: center; }
+#setup-screen .logo { font-size: 64px; margin-bottom: 16px; }
+#setup-screen h1 { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+#setup-screen p { color: var(--text2); margin-bottom: 28px; font-size: 16px; line-height: 1.5; }
+.setup-field { text-align: left; margin-bottom: 16px; width: 100%; max-width: 360px; }
+.setup-field label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+
+/* ── Notification banner ── */
+#notif-bar { display: none; background: var(--amber); color: #000; padding: 10px 16px; font-size: 13px; font-weight: 600; text-align: center; cursor: pointer; }
+
+/* ── Fab ── */
+.fab { position: fixed; bottom: calc(72px + var(--safe-bottom)); right: 16px; width: 52px; height: 52px; border-radius: 50%; background: var(--accent2); color: #fff; font-size: 24px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; box-shadow: 0 4px 20px rgba(14,165,233,0.4); z-index: 50; transition: transform 0.15s; }
+.fab:active { transform: scale(0.92); }
+
+/* ── Scrollable chip list ── */
+.scroll-x { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.scroll-x::-webkit-scrollbar { display: none; }
+
+/* ── Month nav ── */
+.month-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.month-nav h2 { margin: 0; }
+.month-arrow { background: var(--bg3); border: none; color: var(--text); padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 16px; }
+
+/* ── Firebase badge ── */
+.sync-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 99px; }
+.sync-on { background: rgba(74,222,128,0.15); color: var(--green); }
+.sync-off { background: rgba(148,163,184,0.1); color: var(--text3); }
+.sync-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+/* ── Page headers ── */
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.page-header h2 { margin: 0; }
+
+/* ── Delete btn in list ── */
+.del-btn { background: none; border: none; color: var(--text3); font-size: 18px; cursor: pointer; padding: 4px; border-radius: 6px; transition: color 0.15s; }
+.del-btn:hover { color: var(--red); }
+
+/* ── Category circle ── */
+.cat-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+/* ── Empty state ── */
+.empty { text-align: center; padding: 32px 16px; color: var(--text3); }
+.empty-icon { font-size: 48px; margin-bottom: 10px; }
+.empty p { font-size: 14px; }
+</style>
+</head>
+<body>
+
+<!-- Notification bar -->
+<div id="notif-bar">🔔 Enable notifications for bill reminders</div>
+
+<!-- Update banner (shown when new version is available) -->
+<div id="update-bar" style="display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:540px;background:#1e40af;color:#fff;padding:12px 16px;font-size:13px;font-weight:600;z-index:9999;display:none;align-items:center;justify-content:space-between;gap:10px">
+  <span>🆕 New version available</span>
+  <button onclick="window.location.reload()" style="background:#fff;color:#1e40af;border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">Update now</button>
+</div>
+
+<!-- Setup screen (shown on first launch) -->
+<div id="setup-screen">
+  <div class="logo">💷</div>
+  <h1>Family Budget</h1>
+  <p>Track your income, bills and spending together — and never get caught out again.</p>
+  <div class="setup-field">
+    <label>Your name</label>
+    <input type="text" id="setup-name" placeholder="e.g. James" autocomplete="given-name">
+  </div>
+  <div class="setup-field">
+    <label>Household name</label>
+    <input type="text" id="setup-household" placeholder="e.g. Our Family Budget" value="Our Family Budget">
+  </div>
+  <div style="width:100%;max-width:360px">
+    <button class="btn btn-primary" onclick="finishSetup()">Get Started</button>
+  </div>
+</div>
+
+<!-- Main app -->
+<div id="app" style="display:none">
+  <div id="content">
+    <!-- HOME -->
+    <div id="tab-home" class="tab-panel">
+      <div id="home-alerts"></div>
+
+      <!-- Opening balance banner (shown when not set) -->
+      <div id="opening-balance-prompt" class="alert alert-warn" style="cursor:pointer" onclick="openSetBalanceModal()">
+        <span class="alert-icon">💰</span>
+        <div><strong>Set your opening balance</strong><br><span style="font-size:12px">Tap here to enter how much is in your account right now</span></div>
+      </div>
+
+      <div class="balance-hero">
+        <div class="balance-label">Current Balance</div>
+        <div class="balance-amount" id="hero-balance">£0</div>
+        <div class="balance-meta" id="hero-meta">Loading…</div>
+        <div style="margin-top:10px">
+          <button onclick="openSetBalanceModal()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer">✏️ Update balance</button>
+        </div>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">In this month</div>
+          <div class="stat-value" style="color:var(--green)" id="stat-in">£0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Bills left</div>
+          <div class="stat-value" style="color:var(--red)" id="stat-bills">£0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Spent</div>
+          <div class="stat-value" style="color:var(--amber)" id="stat-spent">£0</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Upcoming Bills</h3>
+        <div id="upcoming-bills-list"><div class="empty"><div class="empty-icon">✅</div><p>No bills due in the next 7 days</p></div></div>
+      </div>
+
+      <div class="card">
+        <h3>Recent Spending</h3>
+        <div id="home-recent-spend"><div class="empty"><p>No spending logged yet</p></div></div>
+      </div>
+
+      <div class="card">
+        <h3>Month Progress</h3>
+        <div id="month-progress-list"></div>
+      </div>
+    </div>
+
+    <!-- BILLS -->
+    <div id="tab-bills" class="tab-panel" style="display:none">
+      <div class="toggle-wrap" id="bills-toggle" style="margin-bottom:14px">
+        <button class="toggle-btn active" onclick="setBillsView('regular')">Regular Bills</button>
+        <button class="toggle-btn" onclick="setBillsView('oneoff')">One-off & Variable</button>
+      </div>
+
+      <!-- Regular bills section -->
+      <div id="bills-regular-section">
+        <div class="page-header">
+          <h2>Bills & Direct Debits</h2>
+          <button class="btn btn-primary btn-sm" onclick="openAddBillModal()">+ Add</button>
+        </div>
+        <div class="card" style="margin-bottom:8px">
+          <div id="bills-summary-bar" style="display:flex;gap:16px;font-size:13px;flex-wrap:wrap">
+            <span>Monthly total: <strong id="bills-total">£0</strong></span>
+            <span style="color:var(--red)">Unpaid: <strong id="bills-unpaid">£0</strong></span>
+            <span style="color:var(--green)">Paid: <strong id="bills-paid-total">£0</strong></span>
+          </div>
+        </div>
+        <div class="card">
+          <div id="bills-list"></div>
+        </div>
+      </div>
+
+      <!-- One-off & variable section -->
+      <div id="bills-oneoff-section" style="display:none">
+        <div class="page-header">
+          <h2>One-off & Variable</h2>
+          <button class="btn btn-primary btn-sm" onclick="openAddOneoffModal()">+ Add</button>
+        </div>
+        <div class="card" style="margin-bottom:8px;font-size:13px">
+          <span>This month: <strong id="oneoff-month-total" style="color:var(--red)">£0</strong></span>
+          <span style="margin-left:16px;color:var(--text2)">All time: <strong id="oneoff-all-total">£0</strong></span>
+        </div>
+        <div class="card">
+          <div id="oneoff-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SPEND -->
+    <div id="tab-spend" class="tab-panel" style="display:none">
+      <h2>Log Spending</h2>
+      <div class="spend-form">
+        <div class="form-row">
+          <div class="input-wrap">
+            <label>Amount (£)</label>
+            <input type="number" id="spend-amount" placeholder="0.00" step="0.01" min="0">
+          </div>
+          <div class="input-wrap">
+            <label>Date</label>
+            <input type="date" id="spend-date">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="input-wrap">
+            <label>Category</label>
+            <select id="spend-cat">
+              <option value="Shopping">🛒 Shopping</option>
+              <option value="Pocket Money">💰 Pocket Money</option>
+              <option value="Eating Out">🍔 Eating Out</option>
+              <option value="Fuel">⛽ Fuel</option>
+              <option value="Kids">👧 Kids</option>
+              <option value="Clothing">👕 Clothing</option>
+              <option value="Entertainment">🎬 Entertainment</option>
+              <option value="Health">💊 Health</option>
+              <option value="Other">📦 Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="input-wrap">
+            <label>Note (optional)</label>
+            <input type="text" id="spend-note" placeholder="What did you buy?">
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="logSpend()">Add Spending</button>
+      </div>
+
+      <div class="toggle-wrap" id="spend-toggle">
+        <button class="toggle-btn active" onclick="setSpendView('week')">This Week</button>
+        <button class="toggle-btn" onclick="setSpendView('month')">This Month</button>
+        <button class="toggle-btn" onclick="setSpendView('all')">All</button>
+      </div>
+      <div class="card">
+        <div id="spend-log"></div>
+      </div>
+    </div>
+
+    <!-- INCOME -->
+    <div id="tab-income" class="tab-panel" style="display:none">
+      <div class="page-header">
+        <h2>Income Schedule</h2>
+        <button class="btn btn-primary btn-sm" onclick="openAddIncomeModal()">+ Add</button>
+      </div>
+      <div class="card" style="margin-bottom:8px">
+        <div style="font-size:13px">Monthly total: <strong id="income-total" style="color:var(--green)">£0</strong></div>
+      </div>
+      <div class="card">
+        <div id="income-list"></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="tab-settings" class="tab-panel" style="display:none">
+      <h2>Settings</h2>
+      <div class="card" style="margin-bottom:12px">
+        <h3>Household</h3>
+        <div class="setting-item">
+          <div>
+            <div class="setting-label" id="settings-name">Loading…</div>
+            <div class="setting-desc" id="settings-household">Loading…</div>
+          </div>
+        </div>
+        <div class="setting-item">
+          <div>
+            <div class="setting-label">Sync</div>
+            <div class="setting-desc">Real-time sync between devices</div>
+          </div>
+          <div class="setting-action" id="sync-status-badge"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:12px">
+        <h3>Firebase Sync (optional)</h3>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Add your Firebase config to sync between all devices in real time. See SETUP.md for instructions.</p>
+        <div class="input-wrap" style="margin-bottom:10px">
+          <label>Firebase Config JSON</label>
+          <textarea id="firebase-config-input" rows="5" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}'></textarea>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="saveFirebaseConfig()" style="flex:1">Connect Firebase</button>
+          <button class="btn btn-danger btn-sm" onclick="clearFirebaseConfig()">Clear</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:12px">
+        <h3>Notifications</h3>
+        <div class="setting-item">
+          <div>
+            <div class="setting-label">Bill Reminders</div>
+            <div class="setting-desc">Get notified before bills go out</div>
+          </div>
+          <div class="setting-action">
+            <button class="btn btn-secondary btn-sm" onclick="requestNotifPermission()">Enable</button>
+          </div>
+        </div>
+        <div class="setting-item">
+          <div>
+            <div class="setting-label">Days before bill</div>
+            <div class="setting-desc">How far ahead to warn you</div>
+          </div>
+          <div class="setting-action">
+            <select id="notif-days" style="width:80px" onchange="saveSettings()">
+              <option value="1">1 day</option>
+              <option value="2">2 days</option>
+              <option value="3" selected>3 days</option>
+              <option value="5">5 days</option>
+              <option value="7">7 days</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Data</h3>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-secondary" onclick="exportData()">📤 Export Data (JSON)</button>
+          <button class="btn btn-secondary" onclick="importDataPrompt()">📥 Import Data</button>
+          <button class="btn btn-danger" onclick="resetData()">🗑️ Reset All Data</button>
+        </div>
+      </div>
+    </div>
+
+      <!-- INSIGHTS -->
+      <div id="tab-insights" class="tab-panel" style="display:none">
+        <h2>Insights</h2>
+
+        <div class="card" style="margin-bottom:12px">
+          <h3>Financial Health</h3>
+          <div id="health-summary" style="margin-bottom:12px"></div>
+          <div id="health-bars"></div>
+        </div>
+
+        <div class="card" style="margin-bottom:12px">
+          <h3>Spending Trends</h3>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:10px">This month vs last month by category</div>
+          <div id="trends-table"></div>
+        </div>
+
+        <div class="card" style="margin-bottom:12px">
+          <h3>💡 Suggestions</h3>
+          <div id="insights-tips"></div>
+        </div>
+
+        <div class="card" style="margin-bottom:12px">
+          <h3>🎯 Realistic Savings Plan</h3>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Based on your household: 2 adults · 4 children · 3 dogs · 3 lizards</div>
+          <div id="savings-plan"></div>
+        </div>
+
+        <div class="card">
+          <h3>📦 Recommended Monthly Budget</h3>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Research-backed figures for your household size</div>
+          <div id="budget-breakdown"></div>
+        </div>
+      </div>
+
+  </div><!-- /content -->
+
+  <!-- Bottom nav -->
+  <nav id="nav">
+    <button class="nav-btn active" onclick="showTab('home')" id="nav-home"><span class="icon">🏠</span>Home</button>
+    <button class="nav-btn" onclick="showTab('bills')" id="nav-bills"><span class="icon">📋</span>Bills</button>
+    <button class="nav-btn" onclick="showTab('spend')" id="nav-spend"><span class="icon">💸</span>Spend</button>
+    <button class="nav-btn" onclick="showTab('income')" id="nav-income"><span class="icon">💰</span>Income</button>
+    <button class="nav-btn" onclick="showTab('insights')" id="nav-insights"><span class="icon">📊</span>Insights</button>
+    <button class="nav-btn" onclick="showTab('settings')" id="nav-settings"><span class="icon">⚙️</span>Settings</button>
+  </nav>
+</div><!-- /app -->
+
+<!-- ── Modals ── -->
+
+<!-- Add Bill Modal -->
+<div class="modal-overlay" id="add-bill-modal" onclick="closeModalOnBg(event,'add-bill-modal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="bill-modal-title">Add Bill</h2>
+    <input type="hidden" id="bill-edit-id">
+    <div class="form-row">
+      <div class="input-wrap">
+        <label>Bill Name</label>
+        <input type="text" id="bill-name" placeholder="e.g. British Gas">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="input-wrap">
+        <label>Amount (£)</label>
+        <input type="number" id="bill-amount" placeholder="0.00" step="0.01" min="0">
+      </div>
+      <div class="input-wrap">
+        <label>Day of month</label>
+        <input type="number" id="bill-day" placeholder="e.g. 12" min="1" max="31">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="input-wrap">
+        <label>Category / Icon</label>
+        <select id="bill-icon">
+          <option value="🏠">🏠 Rent / Mortgage</option>
+          <option value="⚡">⚡ Energy</option>
+          <option value="💧">💧 Water</option>
+          <option value="📱">📱 Phones</option>
+          <option value="📺">📺 Subscriptions</option>
+          <option value="🏋️">🏋️ Gym</option>
+          <option value="💳">💳 Debt / Loan</option>
+          <option value="👨‍👩‍👧">👨‍👩‍👧 Family</option>
+          <option value="🚗">🚗 Car / Transport</option>
+          <option value="📦">📦 Other</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary" style="margin-top:6px" onclick="saveBill()">Save Bill</button>
+  </div>
+</div>
+
+<!-- Add Income Modal -->
+<div class="modal-overlay" id="add-income-modal" onclick="closeModalOnBg(event,'add-income-modal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="income-modal-title">Add Income</h2>
+    <input type="hidden" id="income-edit-id">
+    <div class="form-row">
+      <div class="input-wrap">
+        <label>Name</label>
+        <input type="text" id="income-name" placeholder="e.g. Universal Credit">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="input-wrap">
+        <label>Amount (£)</label>
+        <input type="number" id="income-amount" placeholder="0.00" step="0.01" min="0">
+      </div>
+      <div class="input-wrap">
+        <label>Day of month (approx)</label>
+        <input type="number" id="income-day" placeholder="e.g. 12" min="1" max="31">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="input-wrap">
+        <label>Frequency</label>
+        <select id="income-freq">
+          <option value="monthly">Monthly</option>
+          <option value="fourweekly">Every 4 weeks</option>
+          <option value="weekly">Weekly</option>
+          <option value="fortnightly">Fortnightly</option>
+          <option value="irregular">Irregular</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary" style="margin-top:6px" onclick="saveIncome()">Save Income</button>
+  </div>
+</div>
+
+<!-- Set Opening Balance Modal -->
+<div class="modal-overlay" id="set-balance-modal" onclick="closeModalOnBg(event,'set-balance-modal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>Set Current Balance</h2>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Enter exactly what's in your bank account right now. The app will track everything from this point forward.</p>
+    <div class="form-row">
+      <div class="input-wrap">
+        <label>Amount in account (£)</label>
+        <input type="number" id="opening-balance-amount" placeholder="0.00" step="0.01">
+      </div>
+      <div class="input-wrap">
+        <label>As of date</label>
+        <input type="date" id="opening-balance-date">
+      </div>
+    </div>
+    <button class="btn btn-primary" style="margin-top:6px" onclick="saveOpeningBalance()">Save Balance</button>
+  </div>
+</div>
+
+<!-- Add One-off Modal -->
+<div class="modal-overlay" id="add-oneoff-modal" onclick="closeModalOnBg(event,'add-oneoff-modal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="oneoff-modal-title">Add One-off / Variable Bill</h2>
+    <input type="hidden" id="oneoff-edit-id">
+    <div class="form-row">
+      <div class="input-wrap">
+        <label>Description</label>
+        <input type="text" id="oneoff-name" placeholder="e.g. Car MOT, Boiler repair">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="input-wrap">
+        <label>Amount (£)</label>
+        <input type="number" id="oneoff-amount" placeholder="0.00" step="0.01" min="0">
+      </div>
+      <div class="input-wrap">
+        <label>Date</label>
+        <input type="date" id="oneoff-date">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="input-wrap">
+        <label>Category</label>
+        <select id="oneoff-icon">
+          <option value="🚗">🚗 Car</option>
+          <option value="🏠">🏠 Home</option>
+          <option value="💊">💊 Medical</option>
+          <option value="👕">👕 Clothing</option>
+          <option value="🎉">🎉 Event / Occasion</option>
+          <option value="✈️">✈️ Travel / Holiday</option>
+          <option value="🎓">🎓 School / Education</option>
+          <option value="🔧">🔧 Repair / Maintenance</option>
+          <option value="💳">💳 Debt / Fine</option>
+          <option value="📦">📦 Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="input-wrap">
+        <label>Note (optional)</label>
+        <input type="text" id="oneoff-note" placeholder="Any extra detail">
+      </div>
+    </div>
+    <button class="btn btn-primary" style="margin-top:6px" onclick="saveOneoff()">Save</button>
+  </div>
+</div>
+
+<script>
+// ── Data model ──────────────────────────────────────────────────
+const DEFAULT_DATA = {
+  profile: { name: '', household: 'Our Family Budget' },
+  settings: { notifDays: 3 },
+  bills: [
+    { id: 'b1', name: 'Mother', amount: 150, dueDay: null, icon: '👨‍👩‍👧', paid: [] },
+    { id: 'b2', name: 'British Gas', amount: 263, dueDay: null, icon: '⚡', paid: [] },
+    { id: 'b3', name: 'Arrears', amount: 240, dueDay: null, icon: '💳', paid: [] },
+    { id: 'b4', name: 'Debts', amount: 300, dueDay: null, icon: '💳', paid: [] },
+    { id: 'b5', name: 'Phones', amount: 350, dueDay: null, icon: '📱', paid: [] },
+    { id: 'b6', name: 'Water', amount: 50, dueDay: null, icon: '💧', paid: [] },
+    { id: 'b7', name: 'Gym', amount: 60, dueDay: null, icon: '🏋️', paid: [] },
+    { id: 'b8', name: 'Subs', amount: 100, dueDay: null, icon: '📺', paid: [] },
+    { id: 'b9', name: 'Devils', amount: 210, dueDay: null, icon: '📦', paid: [] },
+  ],
+  income: [
+    { id: 'i1', name: 'Universal Credit',  amount: 2873, day: 12,   freq: 'monthly'    },
+    { id: 'i2', name: 'Grace DLA',         amount: 558,  anchorDate: '2026-04-07', freq: 'fourweekly' },
+    { id: 'i3', name: 'Chloe DLA',         amount: 558,  anchorDate: '2026-04-21', freq: 'fourweekly' },
+    { id: 'i4', name: 'Ollie DLA',         amount: 412,  anchorDate: '2026-04-28', freq: 'fourweekly' },
+    { id: 'i5', name: 'PIP',               amount: 441,  anchorDate: '2026-04-23', freq: 'fourweekly' },
+    { id: 'i6', name: 'Child Benefit',     amount: 236,  anchorDate: '2026-04-07', freq: 'fourweekly' },
+    { id: 'i7', name: 'Carers Allowance',  amount: 333,  anchorDate: '2026-04-13', freq: 'fourweekly' },
+    { id: 'i8', name: 'Fostering Allowance', amount: 186, day: null, freq: 'weekly', weekDay: 4, note: 'Weekly on Thursdays' },
+  ],
+  spending: [],
+  oneoffs: [],
+  openingBalance: null, // { amount: 70.74, date: '2026-04-25' }
+  firebaseConfig: null,
+};
+
+let db = {};
+let firebaseDb = null;
+let currentSpendView = 'week';
+
+// ── Data migration ────────────────────────────────────────────────
+const INCOME_CORRECTIONS = {
+  i1: { freq: 'monthly', day: 12 },
+  i2: { freq: 'fourweekly', anchorDate: '2026-04-07' },
+  i3: { freq: 'fourweekly', anchorDate: '2026-04-21' },
+  i4: { freq: 'fourweekly', anchorDate: '2026-04-28' },
+  i5: { freq: 'fourweekly', anchorDate: '2026-04-23' },
+  i6: { freq: 'fourweekly', anchorDate: '2026-04-07' },
+  i7: { freq: 'fourweekly', anchorDate: '2026-04-13' },
+  i8: { freq: 'weekly', weekDay: 4, amount: 186, day: null, note: 'Weekly on Thursdays' },
+};
+
+function migrateData() {
+  // 1. Fix income — always apply corrections from INCOME_CORRECTIONS
+  if (db.income) {
+    db.income.forEach(src => {
+      const fix = INCOME_CORRECTIONS[src.id];
+      if (fix) Object.assign(src, fix);
+    });
+  }
+
+  // 2. Deduplicate bills by ID (keep first occurrence)
+  if (db.bills) {
+    const seen = new Set();
+    db.bills = db.bills.filter(b => {
+      if (seen.has(b.id)) return false;
+      seen.add(b.id);
+      return true;
+    });
+  }
+}
+
+// ── Storage helpers ──────────────────────────────────────────────
+function load() {
+  try {
+    const raw = localStorage.getItem('familyBudget');
+    if (raw) {
+      db = { ...DEFAULT_DATA, ...JSON.parse(raw) };
+    } else {
+      db = JSON.parse(JSON.stringify(DEFAULT_DATA));
+    }
+  } catch(e) { db = JSON.parse(JSON.stringify(DEFAULT_DATA)); }
+  migrateData();
+}
+
+function save() {
+  localStorage.setItem('familyBudget', JSON.stringify(db));
+  syncToFirebase();
+}
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+// ── Firebase ─────────────────────────────────────────────────────
+function initFirebase(config) {
+  if (!config) return;
+  if (typeof firebase === 'undefined') {
+    loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js', () => {
+      loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js', () => {
+        connectFirebase(config);
+      });
+    });
+  } else { connectFirebase(config); }
+}
+
+function loadScript(src, cb) {
+  const s = document.createElement('script');
+  s.src = src; s.onload = cb; document.head.appendChild(s);
+}
+
+function connectFirebase(config) {
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(config);
+    firebaseDb = firebase.firestore();
+    const householdId = (db.profile.household || 'default').toLowerCase().replace(/[^a-z0-9]/g,'-');
+    const docRef = firebaseDb.collection('households').doc(householdId);
+    // Real-time listener
+    docRef.onSnapshot(snap => {
+      if (snap.exists) {
+        const remote = snap.data();
+        if (remote._ts && remote._ts > (db._ts || 0)) {
+          db = { ...db, ...remote };
+          migrateData(); // always fix stale data coming from Firebase
+          localStorage.setItem('familyBudget', JSON.stringify(db));
+          renderAll();
+        }
+      }
+    });
+    updateSyncBadge(true);
+  } catch(e) {
+    console.error('Firebase error:', e);
+    updateSyncBadge(false);
+  }
+}
+
+function syncToFirebase() {
+  if (!firebaseDb) { updateSyncBadge(false); return; }
+  const householdId = (db.profile.household || 'default').toLowerCase().replace(/[^a-z0-9]/g,'-');
+  db._ts = Date.now();
+  firebaseDb.collection('households').doc(householdId).set(db).catch(e => console.error('Sync error:', e));
+}
+
+function updateSyncBadge(on) {
+  const el = document.getElementById('sync-status-badge');
+  if (!el) return;
+  el.innerHTML = on
+    ? '<span class="sync-badge sync-on"><span class="sync-dot"></span>Live</span>'
+    : '<span class="sync-badge sync-off"><span class="sync-dot"></span>Local only</span>';
+}
+
+function saveFirebaseConfig() {
+  const raw = document.getElementById('firebase-config-input').value.trim();
+  try {
+    const config = JSON.parse(raw);
+    db.firebaseConfig = config;
+    save();
+    initFirebase(config);
+    alert('Firebase connected! Data will now sync across devices.');
+  } catch(e) { alert('Invalid JSON. Check your Firebase config.'); }
+}
+
+function clearFirebaseConfig() {
+  if (!confirm('Disconnect Firebase sync?')) return;
+  db.firebaseConfig = null;
+  firebaseDb = null;
+  save();
+  updateSyncBadge(false);
+}
+
+// ── Setup screen ─────────────────────────────────────────────────
+function finishSetup() {
+  const name = document.getElementById('setup-name').value.trim();
+  const household = document.getElementById('setup-household').value.trim();
+  if (!name) { alert('Please enter your name'); return; }
+  db.profile = { name, household: household || 'Our Family Budget' };
+  db._setupDone = true;
+  save();
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  renderAll();
+  checkNotifPermission();
+}
+
+// ── Date helpers ─────────────────────────────────────────────────
+function today() { return new Date(); }
+function todayStr() { return fmtDate(today()); }
+function fmtDate(d) { return d.toISOString().slice(0,10); }
+function monthKey(d) { return d ? d.slice(0,7) : today().toISOString().slice(0,7); }
+function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+// Returns all payment dates for a 4-weekly income in the given month
+function fourWeeklyDatesInMonth(anchorDate, year, month) {
+  if (!anchorDate) return [];
+  const anchor = new Date(anchorDate + 'T12:00:00');
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month + 1, 0, 23, 59, 59);
+  const msPerDay = 86400000;
+  const diffDays = Math.round((monthStart - anchor) / msPerDay);
+  const nStart = Math.floor(diffDays / 28) - 1;
+  const dates = [];
+  for (let n = nStart; n <= nStart + 4; n++) {
+    const d = new Date(anchor.getTime() + n * 28 * msPerDay);
+    if (d >= monthStart && d <= monthEnd) dates.push(d);
+  }
+  return dates.sort((a, b) => a - b);
+}
+
+// Next occurrence of a 4-weekly payment on or after a given date
+function nextFourWeeklyDate(anchorDate, fromDate) {
+  if (!anchorDate) return null;
+  const anchor = new Date(anchorDate + 'T12:00:00');
+  const from = new Date(fromDate); from.setHours(0,0,0,0);
+  const msPerDay = 86400000;
+  const diff = Math.round((from - anchor) / msPerDay);
+  const n = Math.ceil(diff / 28);
+  return new Date(anchor.getTime() + n * 28 * msPerDay);
+}
+
+// Count how many of a given weekday have occurred in month up to dayOfMonth (or whole month if omitted)
+function thursdaysInMonth(weekDay, yr, mo, upToDay) {
+  const last = upToDay || new Date(yr, mo + 1, 0).getDate();
+  let count = 0;
+  for (let d = 1; d <= last; d++) {
+    if (new Date(yr, mo, d).getDay() === weekDay) count++;
+  }
+  return count;
+}
+
+function daysUntil(day) {
+  const now = today();
+  const cur = now.getDate();
+  const dim = daysInMonth(now.getFullYear(), now.getMonth()+1);
+  return day >= cur ? day - cur : (dim - cur) + day;
+}
+function ordinal(n) {
+  const s=['th','st','nd','rd'], v=n%100;
+  return n + (s[(v-20)%10] || s[v] || s[0]);
+}
+function fmtGBP(n) { return '£' + Number(n).toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+// ── Bill paid helpers ─────────────────────────────────────────────
+function billPaidKey() { return monthKey(); }
+function isBillPaid(bill) { return (bill.paid || []).includes(billPaidKey()); }
+function toggleBillPaid(id) {
+  const bill = db.bills.find(b => b.id === id);
+  if (!bill) return;
+  const key = billPaidKey();
+  if (!bill.paid) bill.paid = [];
+  if (bill.paid.includes(key)) {
+    bill.paid = bill.paid.filter(k => k !== key);
+  } else {
+    bill.paid.push(key);
+  }
+  save();
+  renderBills();
+  renderHome();
+}
+
+// ── Tab navigation ────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).style.display = 'block';
+  document.getElementById('nav-' + name).classList.add('active');
+  document.getElementById('content').scrollTop = 0;
+  if (name === 'home') renderHome();
+  if (name === 'bills') renderBills();
+  if (name === 'spend') renderSpend();
+  if (name === 'income') renderIncome();
+  if (name === 'insights') renderInsights();
+  if (name === 'settings') renderSettings();
+}
+
+// Check hash on load
+if (location.hash === '#bills') setTimeout(() => showTab('bills'), 100);
+
+// ── HOME ──────────────────────────────────────────────────────────
+function renderHome() {
+  const now = today();
+  const mk = monthKey();
+
+  // ── Helper: income received on or before a given date ─────────────
+  function incomeReceivedByDate(cutoffDate) {
+    const cutoff = new Date(cutoffDate + 'T23:59:59');
+    const yr = cutoff.getFullYear(), mo = cutoff.getMonth();
+    let total = 0;
+    db.income.forEach(src => {
+      if (src.freq === 'monthly') {
+        if (src.day) {
+          const pd = new Date(yr, mo, src.day);
+          if (pd <= cutoff) total += Number(src.amount);
+        }
+      } else if (src.freq === 'fourweekly') {
+        const dates = fourWeeklyDatesInMonth(src.anchorDate, yr, mo);
+        dates.forEach(d => { if (d <= cutoff) total += Number(src.amount); });
+      } else if (src.freq === 'weekly') {
+        const targetDay = src.weekDay !== undefined ? src.weekDay : 4;
+        const monthStart = new Date(yr, mo, 1);
+        for (let d = new Date(monthStart); d <= cutoff; d.setDate(d.getDate() + 1)) {
+          if (d.getDay() === targetDay) total += Number(src.amount);
+        }
+      } else if (src.freq === 'fortnightly') {
+        total += Number(src.amount) * (cutoff.getDate() >= 14 ? 2 : 1);
+      } else {
+        total += Number(src.amount);
+      }
+    });
+    return total;
+  }
+
+  const incomeReceived = incomeReceivedByDate(fmtDate(now));
+
+  // Bills remaining (unpaid) and paid
+  const billsRemaining = db.bills.filter(b => !isBillPaid(b)).reduce((s, b) => s + Number(b.amount), 0);
+  const billsPaid = db.bills.filter(b => isBillPaid(b)).reduce((s, b) => s + Number(b.amount), 0);
+
+  // Opening balance
+  const ob = db.openingBalance;
+  const obDate = ob ? ob.date : null;
+  const obAmount = ob ? Number(ob.amount) : 0;
+  const hasOB = ob && ob.amount !== null && ob.amount !== undefined;
+
+  // Show/hide the "set balance" prompt
+  const promptEl = document.getElementById('opening-balance-prompt');
+  if (promptEl) promptEl.style.display = hasOB ? 'none' : 'flex';
+
+  // Only count transactions AFTER the opening balance date
+  function afterOB(dateStr) { return !obDate || dateStr >= obDate; }
+
+  // Income received AFTER opening balance date
+  const incomeAfterOB = hasOB
+    ? incomeReceived - incomeReceivedByDate(obDate.slice(0, 10) + 'T00:00:00'.slice(0, 10))
+    : incomeReceived;
+
+  // One-off bills: only deduct those ticked as paid
+  const oneoffThisMonth = (db.oneoffs || [])
+    .filter(o => o.paid && o.date.slice(0,7) === mk && afterOB(o.date))
+    .reduce((s,o) => s + Number(o.amount), 0);
+
+  // Spending this month after OB date
+  const spent = db.spending
+    .filter(s => s.date.slice(0,7) === mk && afterOB(s.date))
+    .reduce((t,s) => t + Number(s.amount), 0);
+
+  // Balance
+  const balance = hasOB
+    ? obAmount + (incomeReceived - incomeReceivedByDate(obDate)) - billsPaid - spent - oneoffThisMonth
+    : incomeReceived - billsPaid - spent - oneoffThisMonth;
+
+  // Hero
+  const heroEl = document.getElementById('hero-balance');
+  heroEl.textContent = fmtGBP(balance);
+  heroEl.className = 'balance-amount ' + (balance > 500 ? 'positive' : balance > 100 ? 'warning' : 'negative');
+
+  const metaText = hasOB
+    ? `Opening balance £${Number(ob.amount).toFixed(2)} set ${fmtDateNice(obDate)}`
+    : `${ordinal(now.getDate())} ${now.toLocaleString('en-GB',{month:'long'})} · Set an opening balance for accuracy`;
+  document.getElementById('hero-meta').textContent = metaText;
+
+  document.getElementById('stat-in').textContent = fmtGBP(hasOB ? incomeAfterOB : incomeReceived);
+  const oneoffUnpaid = (db.oneoffs || [])
+    .filter(o => !o.paid && o.date.slice(0,7) === mk)
+    .reduce((s,o) => s + Number(o.amount), 0);
+  document.getElementById('stat-bills').textContent = fmtGBP(billsRemaining + oneoffUnpaid);
+  document.getElementById('stat-spent').textContent = fmtGBP(spent);
+
+  // Upcoming bills
+  const notifDays = parseInt(db.settings?.notifDays || 3);
+  const upcoming = db.bills
+    .filter(b => !isBillPaid(b) && b.dueDay)
+    .map(b => ({ ...b, daysAway: daysUntil(b.dueDay) }))
+    .filter(b => b.daysAway <= 7)
+    .sort((a,b) => a.daysAway - b.daysAway);
+
+  const upEl = document.getElementById('upcoming-bills-list');
+  if (upcoming.length === 0) {
+    upEl.innerHTML = '<div class="empty"><div class="empty-icon">✅</div><p>No bills due in the next 7 days</p></div>';
+  } else {
+    upEl.innerHTML = upcoming.map(b => billItemHtml(b, true)).join('');
+  }
+
+  // Alerts
+  const alertsEl = document.getElementById('home-alerts');
+  const urgent = db.bills.filter(b => !isBillPaid(b) && b.dueDay && daysUntil(b.dueDay) <= notifDays);
+  alertsEl.innerHTML = urgent.map(b => {
+    const d = daysUntil(b.dueDay);
+    const when = d === 0 ? 'TODAY' : d === 1 ? 'tomorrow' : `in ${d} days`;
+    const cls = d === 0 ? 'alert-urgent' : 'alert-warn';
+    const icon = d === 0 ? '🚨' : '⚠️';
+    return `<div class="alert ${cls}"><span class="alert-icon">${icon}</span><div><strong>${b.name}</strong> ${fmtGBP(b.amount)} due ${when} (${ordinal(b.dueDay)})</div></div>`;
+  }).join('');
+
+  // Recent spending
+  const recentEl = document.getElementById('home-recent-spend');
+  const recent = [...db.spending].sort((a,b) => b.date.localeCompare(a.date)).slice(0,4);
+  if (recent.length === 0) {
+    recentEl.innerHTML = '<div class="empty"><p>No spending logged yet</p></div>';
+  } else {
+    recentEl.innerHTML = recent.map(spendHtml).join('');
+  }
+
+  // Month progress bars
+  const progressEl = document.getElementById('month-progress-list');
+  const categories = [...new Set(db.spending.filter(s => s.date.slice(0,7) === mk).map(s => s.cat))];
+  const catBudgets = { Shopping: 1600, 'Pocket Money': 400, 'Eating Out': 150, Fuel: 100, Kids: 200, Other: 200 };
+  progressEl.innerHTML = categories.map(cat => {
+    const catSpent = db.spending.filter(s => s.cat === cat && s.date.slice(0,7) === mk).reduce((t,s) => t+Number(s.amount),0);
+    const budget = catBudgets[cat] || 200;
+    const pct = Math.min(100, (catSpent / budget) * 100);
+    const color = pct > 90 ? 'var(--red)' : pct > 70 ? 'var(--amber)' : 'var(--green)';
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+        <span>${cat}</span><span>${fmtGBP(catSpent)}</span>
+      </div>
+      <div class="progress-wrap"><div class="progress-fill" style="width:${pct}%;background:${color}"></div></div>
+    </div>`;
+  }).join('') || '<div style="color:var(--text3);font-size:13px;text-align:center;padding:8px">Log some spending to see progress</div>';
+
+  // Schedule SW reminder check
+  scheduleReminders();
+}
+
+// ── BILLS ─────────────────────────────────────────────────────────
+function renderBills() {
+  const sorted = [...db.bills].sort((a, b) => {
+    const aPaid = isBillPaid(a), bPaid = isBillPaid(b);
+    if (aPaid && !bPaid) return 1;
+    if (!aPaid && bPaid) return -1;
+    if (!a.dueDay && !b.dueDay) return 0;
+    if (!a.dueDay) return 1;
+    if (!b.dueDay) return -1;
+    return daysUntil(a.dueDay) - daysUntil(b.dueDay);
+  });
+  const total = db.bills.reduce((s,b) => s + Number(b.amount), 0);
+  const unpaid = db.bills.filter(b => !isBillPaid(b)).reduce((s,b) => s + Number(b.amount), 0);
+  const paid = db.bills.filter(b => isBillPaid(b)).reduce((s,b) => s + Number(b.amount), 0);
+  document.getElementById('bills-total').textContent = fmtGBP(total);
+  document.getElementById('bills-unpaid').textContent = fmtGBP(unpaid);
+  document.getElementById('bills-paid-total').textContent = fmtGBP(paid);
+  document.getElementById('bills-list').innerHTML = sorted.length
+    ? sorted.map(b => billItemHtml(b, false)).join('')
+    : '<div class="empty"><div class="empty-icon">📋</div><p>No bills added yet</p></div>';
+}
+
+function billItemHtml(b, compact) {
+  const paid = isBillPaid(b);
+  let badge = '';
+  if (!paid && b.dueDay) {
+    const d = daysUntil(b.dueDay);
+    if (d === 0) badge = '<span class="bill-badge badge-urgent">TODAY</span>';
+    else if (d <= 3) badge = `<span class="bill-badge badge-urgent">${d}d left</span>`;
+    else if (d <= 7) badge = `<span class="bill-badge badge-soon">${d}d left</span>`;
+    else badge = `<span class="bill-badge badge-ok">${d}d left</span>`;
+  } else if (!paid) {
+    badge = '<span class="bill-badge badge-ok" style="background:rgba(148,163,184,0.1);color:var(--text3)">No date set</span>';
+  }
+  const dayText = b.dueDay ? `Due ${ordinal(b.dueDay)} of month` : 'Tap ✏️ to set due date';
+  return `<div class="bill-item" style="${paid ? 'opacity:0.5;text-decoration:line-through' : ''}">
+    <button class="paid-check ${paid ? 'checked' : ''}" onclick="toggleBillPaid('${b.id}')" title="Mark as paid / unpaid">
+      ${paid ? '✓' : ''}
+    </button>
+    <div class="bill-icon" style="background:rgba(56,189,248,0.10)">${b.icon}</div>
+    <div class="bill-info">
+      <div class="bill-name">${b.name}</div>
+      <div class="bill-meta">${dayText}</div>
+    </div>
+    <div class="bill-right">
+      <div class="bill-amount" style="${paid ? 'color:var(--text3)' : ''}">${fmtGBP(b.amount)}</div>
+      ${badge}
+    </div>
+    ${compact ? '' : `<button class="del-btn" onclick="editBill('${b.id}')">✏️</button><button class="del-btn" onclick="deleteBill('${b.id}')">🗑</button>`}
+  </div>`;
+}
+
+function editBill(id) {
+  const b = db.bills.find(x => x.id === id);
+  if (!b) return;
+  document.getElementById('bill-modal-title').textContent = 'Edit Bill';
+  document.getElementById('bill-edit-id').value = id;
+  document.getElementById('bill-name').value = b.name;
+  document.getElementById('bill-amount').value = b.amount;
+  document.getElementById('bill-day').value = b.dueDay || '';
+  document.getElementById('bill-icon').value = b.icon || '📦';
+  openModal('add-bill-modal');
+}
+
+function saveBill() {
+  const name = document.getElementById('bill-name').value.trim();
+  const amount = parseFloat(document.getElementById('bill-amount').value);
+  const day = parseInt(document.getElementById('bill-day').value) || null;
+  const icon = document.getElementById('bill-icon').value;
+  if (!name || isNaN(amount)) { alert('Please enter a name and amount'); return; }
+  const editId = document.getElementById('bill-edit-id').value;
+  if (editId) {
+    const bill = db.bills.find(b => b.id === editId);
+    if (bill) { bill.name = name; bill.amount = amount; bill.dueDay = day; bill.icon = icon; }
+  } else {
+    db.bills.push({ id: uid(), name, amount, dueDay: day, icon, paid: [] });
+  }
+  save();
+  closeModal('add-bill-modal');
+  renderBills();
+  renderHome();
+}
+
+function deleteBill(id) {
+  if (!confirm('Remove this bill?')) return;
+  db.bills = db.bills.filter(b => b.id !== id);
+  save();
+  renderBills();
+  renderHome();
+}
+
+// ── BILLS TAB TOGGLE ─────────────────────────────────────────────
+let billsView = 'regular';
+function setBillsView(v) {
+  billsView = v;
+  document.querySelectorAll('#bills-toggle .toggle-btn').forEach((b, i) => {
+    b.classList.toggle('active', ['regular','oneoff'][i] === v);
+  });
+  document.getElementById('bills-regular-section').style.display = v === 'regular' ? 'block' : 'none';
+  document.getElementById('bills-oneoff-section').style.display = v === 'oneoff' ? 'block' : 'none';
+  if (v === 'oneoff') renderOneoffs();
+}
+
+// ── ONE-OFF & VARIABLE BILLS ──────────────────────────────────────
+function openAddOneoffModal() {
+  document.getElementById('oneoff-edit-id').value = '';
+  document.getElementById('oneoff-modal-title').textContent = 'Add One-off / Variable Bill';
+  document.getElementById('oneoff-name').value = '';
+  document.getElementById('oneoff-amount').value = '';
+  document.getElementById('oneoff-date').value = todayStr();
+  document.getElementById('oneoff-icon').value = '📦';
+  document.getElementById('oneoff-note').value = '';
+  openModal('add-oneoff-modal');
+}
+
+function saveOneoff() {
+  const name = document.getElementById('oneoff-name').value.trim();
+  const amount = parseFloat(document.getElementById('oneoff-amount').value);
+  const date = document.getElementById('oneoff-date').value || todayStr();
+  const icon = document.getElementById('oneoff-icon').value;
+  const note = document.getElementById('oneoff-note').value.trim();
+  if (!name || isNaN(amount) || amount <= 0) { alert('Please enter a description and amount'); return; }
+  if (!db.oneoffs) db.oneoffs = [];
+  const editId = document.getElementById('oneoff-edit-id').value;
+  if (editId) {
+    const item = db.oneoffs.find(o => o.id === editId);
+    if (item) { item.name = name; item.amount = amount; item.date = date; item.icon = icon; item.note = note; }
+  } else {
+    db.oneoffs.push({ id: uid(), name, amount, date, icon, note });
+  }
+  save();
+  closeModal('add-oneoff-modal');
+  renderOneoffs();
+  renderHome();
+}
+
+function editOneoff(id) {
+  const o = (db.oneoffs || []).find(x => x.id === id);
+  if (!o) return;
+  document.getElementById('oneoff-modal-title').textContent = 'Edit Entry';
+  document.getElementById('oneoff-edit-id').value = id;
+  document.getElementById('oneoff-name').value = o.name;
+  document.getElementById('oneoff-amount').value = o.amount;
+  document.getElementById('oneoff-date').value = o.date;
+  document.getElementById('oneoff-icon').value = o.icon || '📦';
+  document.getElementById('oneoff-note').value = o.note || '';
+  openModal('add-oneoff-modal');
+}
+
+function deleteOneoff(id) {
+  if (!confirm('Remove this entry?')) return;
+  db.oneoffs = (db.oneoffs || []).filter(o => o.id !== id);
+  save();
+  renderOneoffs();
+  renderHome();
+}
+
+function toggleOneoffPaid(id) {
+  const o = (db.oneoffs || []).find(x => x.id === id);
+  if (!o) return;
+  o.paid = !o.paid;
+  save();
+  renderOneoffs();
+  renderHome();
+}
+
+function renderOneoffs() {
+  if (!db.oneoffs) db.oneoffs = [];
+  const mk = monthKey();
+  const todayS = todayStr();
+  const sorted = [...db.oneoffs].sort((a, b) => {
+    // Unpaid: closest upcoming date first, then most recent past date
+    const aPaid = !!a.paid, bPaid = !!b.paid;
+    if (aPaid && !bPaid) return 1;
+    if (!aPaid && bPaid) return -1;
+    // Both same paid status — sort by absolute distance from today, closest first
+    const aDiff = Math.abs(a.date.localeCompare(todayS));
+    const bDiff = Math.abs(b.date.localeCompare(todayS));
+    // Simpler: upcoming dates first (ascending), past dates after (descending within past)
+    const aFuture = a.date >= todayS, bFuture = b.date >= todayS;
+    if (aFuture && !bFuture) return -1;
+    if (!aFuture && bFuture) return 1;
+    if (aFuture && bFuture) return a.date.localeCompare(b.date); // soonest first
+    return b.date.localeCompare(a.date); // most recent past first
+  });
+  const paidThisMonth  = sorted.filter(o => o.paid  && o.date.slice(0,7) === mk).reduce((s,o) => s + Number(o.amount), 0);
+  const unpaidThisMonth = sorted.filter(o => !o.paid && o.date.slice(0,7) === mk).reduce((s,o) => s + Number(o.amount), 0);
+  document.getElementById('oneoff-month-total').textContent = fmtGBP(paidThisMonth + unpaidThisMonth);
+  document.getElementById('oneoff-all-total').textContent = fmtGBP(sorted.reduce((s,o) => s + Number(o.amount), 0));
+  const el = document.getElementById('oneoff-list');
+  el.innerHTML = sorted.length ? sorted.map(o => {
+    const isThisMonth = o.date.slice(0,7) === mk;
+    return `<div class="bill-item" style="${o.paid ? 'opacity:0.5;text-decoration:line-through' : ''}">
+      <button class="paid-check ${o.paid ? 'checked' : ''}" onclick="toggleOneoffPaid('${o.id}')" title="Mark as paid">
+        ${o.paid ? '✓' : ''}
+      </button>
+      <div class="bill-icon" style="background:rgba(251,191,36,0.12)">${o.icon}</div>
+      <div class="bill-info">
+        <div class="bill-name">${o.name}</div>
+        <div class="bill-meta">${fmtDateNice(o.date)}${o.note ? ' · ' + o.note : ''}</div>
+      </div>
+      <div class="bill-right">
+        <div class="bill-amount" style="color:${o.paid ? 'var(--text3)' : 'var(--red)'}">${fmtGBP(o.amount)}</div>
+        ${isThisMonth && !o.paid ? '<span class="bill-badge badge-urgent" style="font-size:9px">UNPAID</span>' : ''}
+        ${isThisMonth && o.paid  ? '<span class="bill-badge badge-paid"  style="font-size:9px">PAID</span>'  : ''}
+      </div>
+      <button class="del-btn" onclick="editOneoff('${o.id}')">✏️</button>
+      <button class="del-btn" onclick="deleteOneoff('${o.id}')">🗑</button>
+    </div>`;
+  }).join('') : '<div class="empty"><div class="empty-icon">✅</div><p>No one-off bills added</p></div>';
+}
+
+// ── SPEND ─────────────────────────────────────────────────────────
+const catEmojis = { Shopping:'🛒','Pocket Money':'💰','Eating Out':'🍔',Fuel:'⛽',Kids:'👧',Clothing:'👕',Entertainment:'🎬',Health:'💊',Other:'📦' };
+
+function spendHtml(s) {
+  const em = catEmojis[s.cat] || '📦';
+  return `<div class="spend-entry">
+    <div class="spend-cat" style="background:rgba(248,113,113,0.12)">${em}</div>
+    <div class="spend-info">
+      <div class="spend-name">${s.note || s.cat}</div>
+      <div class="spend-date">${s.cat} · ${fmtDateNice(s.date)}</div>
+    </div>
+    <div class="spend-amt">${fmtGBP(s.amount)}</div>
+    <button class="del-btn" onclick="deleteSpend('${s.id}')">🗑</button>
+  </div>`;
+}
+
+function fmtDateNice(d) {
+  const dt = new Date(d + 'T12:00:00');
+  const t = today();
+  const yesterday = new Date(t); yesterday.setDate(t.getDate()-1);
+  if (d === fmtDate(t)) return 'Today';
+  if (d === fmtDate(yesterday)) return 'Yesterday';
+  return dt.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
+}
+
+function setSpendView(v) {
+  currentSpendView = v;
+  document.querySelectorAll('#spend-toggle .toggle-btn').forEach((b,i) => {
+    b.classList.toggle('active', ['week','month','all'][i] === v);
+  });
+  renderSpend();
+}
+
+function renderSpend() {
+  const now = today();
+  let entries = [...db.spending];
+  if (currentSpendView === 'week') {
+    const weekAgo = new Date(now); weekAgo.setDate(now.getDate()-7);
+    entries = entries.filter(s => new Date(s.date) >= weekAgo);
+  } else if (currentSpendView === 'month') {
+    entries = entries.filter(s => s.date.slice(0,7) === monthKey());
+  }
+  entries.sort((a,b) => b.date.localeCompare(a.date));
+  const el = document.getElementById('spend-log');
+  el.innerHTML = entries.length
+    ? entries.map(spendHtml).join('')
+    : '<div class="empty"><div class="empty-icon">💸</div><p>No spending logged</p></div>';
+}
+
+function logSpend() {
+  const amount = parseFloat(document.getElementById('spend-amount').value);
+  const date = document.getElementById('spend-date').value || todayStr();
+  const cat = document.getElementById('spend-cat').value;
+  const note = document.getElementById('spend-note').value.trim();
+  if (!amount || isNaN(amount) || amount <= 0) { alert('Enter a valid amount'); return; }
+  db.spending.push({ id: uid(), amount, date, cat, note });
+  save();
+  document.getElementById('spend-amount').value = '';
+  document.getElementById('spend-note').value = '';
+  renderSpend();
+  renderHome();
+}
+
+function deleteSpend(id) {
+  db.spending = db.spending.filter(s => s.id !== id);
+  save();
+  renderSpend();
+  renderHome();
+}
+
+// ── INCOME ────────────────────────────────────────────────────────
+function renderIncome() {
+  const now = today();
+  const yr = now.getFullYear(), mo = now.getMonth();
+  const WEEKDAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  // Build display rows — 4-weekly items may have multiple rows if 2 payments fall in month
+  const rows = [];
+  db.income.forEach(i => {
+    if (i.freq === 'fourweekly') {
+      const dates = fourWeeklyDatesInMonth(i.anchorDate, yr, mo);
+      if (dates.length === 0) {
+        // No payment this month — show next upcoming
+        const nextDate = nextFourWeeklyDate(i.anchorDate, now);
+        const dStr = fmtDate(nextDate);
+        const msUntil = nextDate - now;
+        const daysAway = Math.ceil(msUntil / 86400000);
+        rows.push({ src: i, dateStr: dStr, received: false, daysAway, isExtra: false });
+      } else {
+        dates.forEach((d, idx) => {
+          const dStr = fmtDate(d);
+          const received = d <= now;
+          const daysAway = received ? 0 : Math.ceil((d - now) / 86400000);
+          rows.push({ src: i, dateStr: dStr, received, daysAway, isExtra: idx > 0 });
+        });
+      }
+    } else {
+      rows.push({ src: i, dateStr: null, received: null, daysAway: null, isExtra: false });
+    }
+  });
+
+  // Sort by soonest upcoming payment first; received items go to the bottom
+  function incomeRowKey(row) {
+    const { src, daysAway, received } = row;
+    if (src.freq === 'fourweekly') {
+      return received ? 1000 : (daysAway ?? 1000);
+    }
+    if (src.freq === 'weekly') {
+      const targetDay = src.weekDay !== undefined ? src.weekDay : 4;
+      const n = today();
+      for (let i = 0; i <= 6; i++) {
+        const c = new Date(n); c.setDate(n.getDate() + i);
+        if (c.getDay() === targetDay) return i;
+      }
+      return 99;
+    }
+    // monthly / irregular
+    if (src.day) return daysUntil(src.day);
+    return 99;
+  }
+  rows.sort((a, b) => incomeRowKey(a) - incomeRowKey(b));
+
+  // Monthly total (per-payment amount × expected payments this month)
+  const total = db.income.reduce((s, i) => {
+    if (i.freq === 'fourweekly') {
+      const cnt = fourWeeklyDatesInMonth(i.anchorDate, yr, mo).length || 1;
+      return s + Number(i.amount) * cnt;
+    }
+    if (i.freq === 'weekly') return s + Number(i.amount) * thursdaysInMonth(i.weekDay ?? 4, yr, mo);
+    return s + Number(i.amount);
+  }, 0);
+  document.getElementById('income-total').textContent = fmtGBP(total);
+
+  const el = document.getElementById('income-list');
+  el.innerHTML = rows.length ? rows.map(({ src: i, dateStr, received, daysAway, isExtra }) => {
+    let badge = '', metaExtra = '';
+
+    if (i.freq === 'fourweekly') {
+      metaExtra = dateStr ? ` · ${fmtDateNice(dateStr)}` : '';
+      if (received) {
+        badge = '<span class="bill-badge badge-paid" style="background:rgba(74,222,128,0.15);color:var(--green)">RECEIVED</span>';
+      } else {
+        const label = daysAway === 0 ? 'TODAY' : daysAway === 1 ? 'tomorrow' : `in ${daysAway}d`;
+        badge = `<span class="bill-badge badge-soon">${label}</span>`;
+      }
+    } else if (i.freq === 'weekly') {
+      const targetDay = i.weekDay !== undefined ? i.weekDay : 4;
+      const count = thursdaysInMonth(targetDay, yr, mo, now.getDate());
+      metaExtra = ` · ${WEEKDAY_NAMES[targetDay]}s`;
+      badge = count > 0
+        ? `<span class="bill-badge badge-paid" style="background:rgba(74,222,128,0.15);color:var(--green)">${count}× received</span>`
+        : '';
+    } else {
+      // monthly / irregular
+      const pd = i.day ? new Date(yr, mo, i.day) : null;
+      const rcvd = pd && pd <= now;
+      metaExtra = i.day ? ` · ~${ordinal(i.day)}` : '';
+      if (rcvd) {
+        badge = '<span class="bill-badge badge-paid" style="background:rgba(74,222,128,0.15);color:var(--green)">RECEIVED</span>';
+      } else if (i.day) {
+        const da = daysUntil(i.day);
+        badge = `<span class="bill-badge badge-soon">${da === 0 ? 'TODAY' : da + 'd'}</span>`;
+      }
+    }
+
+    const nameLabel = isExtra ? `<span style="color:var(--text3);font-size:12px"> (2nd this month)</span>` : '';
+    return `<div class="income-item">
+      <div>
+        <div class="income-name">${i.name}${nameLabel}</div>
+        <div class="income-meta">${freqLabel(i.freq)}${metaExtra}</div>
+        ${badge}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="income-amount">${fmtGBP(i.amount)}</div>
+        ${!isExtra ? `<button class="del-btn" onclick="editIncome('${i.id}')">✏️</button><button class="del-btn" onclick="deleteIncome('${i.id}')">🗑</button>` : ''}
+      </div>
+    </div>`;
+  }).join('') : '<div class="empty"><div class="empty-icon">💰</div><p>No income sources added yet</p></div>';
+}
+
+function freqLabel(f) { return {monthly:'Monthly',fourweekly:'Every 4 weeks',weekly:'Weekly',fortnightly:'Fortnightly',irregular:'Irregular'}[f] || f; }
+
+function editIncome(id) {
+  const inc = db.income.find(x => x.id === id);
+  if (!inc) return;
+  document.getElementById('income-modal-title').textContent = 'Edit Income';
+  document.getElementById('income-edit-id').value = id;
+  document.getElementById('income-name').value = inc.name;
+  document.getElementById('income-amount').value = inc.amount;
+  document.getElementById('income-day').value = inc.day || '';
+  document.getElementById('income-freq').value = inc.freq || 'monthly';
+  openModal('add-income-modal');
+}
+
+function saveIncome() {
+  const name = document.getElementById('income-name').value.trim();
+  const amount = parseFloat(document.getElementById('income-amount').value);
+  const day = parseInt(document.getElementById('income-day').value) || null;
+  const freq = document.getElementById('income-freq').value;
+  if (!name || isNaN(amount)) { alert('Please enter a name and amount'); return; }
+  const editId = document.getElementById('income-edit-id').value;
+  if (editId) {
+    const inc = db.income.find(i => i.id === editId);
+    if (inc) { inc.name = name; inc.amount = amount; inc.day = day; inc.freq = freq; }
+  } else {
+    db.income.push({ id: uid(), name, amount, day, freq });
+  }
+  save();
+  closeModal('add-income-modal');
+  renderIncome();
+  renderHome();
+}
+
+function deleteIncome(id) {
+  if (!confirm('Remove this income source?')) return;
+  db.income = db.income.filter(i => i.id !== id);
+  save();
+  renderIncome();
+  renderHome();
+}
+
+// ── OPENING BALANCE ───────────────────────────────────────────────
+function openSetBalanceModal() {
+  const ob = db.openingBalance;
+  document.getElementById('opening-balance-amount').value = ob ? ob.amount : '';
+  document.getElementById('opening-balance-date').value = ob ? ob.date : todayStr();
+  openModal('set-balance-modal');
+}
+
+function saveOpeningBalance() {
+  const amount = parseFloat(document.getElementById('opening-balance-amount').value);
+  const date = document.getElementById('opening-balance-date').value || todayStr();
+  if (isNaN(amount)) { alert('Please enter a valid amount'); return; }
+  db.openingBalance = { amount, date };
+  save();
+  closeModal('set-balance-modal');
+  renderHome();
+}
+
+// ── INSIGHTS ──────────────────────────────────────────────────────
+function renderInsights() {
+  const now = today();
+  const thisMk = monthKey(); // e.g. '2026-04'
+  const lastDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMk = lastDate.getFullYear() + '-' + String(lastDate.getMonth() + 1).padStart(2, '0');
+
+  const thisSpend = db.spending.filter(s => s.date.slice(0, 7) === thisMk);
+  const lastSpend = db.spending.filter(s => s.date.slice(0, 7) === lastMk);
+
+  const sumByCat = arr => arr.reduce((acc, s) => {
+    acc[s.cat] = (acc[s.cat] || 0) + Number(s.amount);
+    return acc;
+  }, {});
+  const thisCats = sumByCat(thisSpend);
+  const lastCats = sumByCat(lastSpend);
+
+  const thisTotal = thisSpend.reduce((s, x) => s + Number(x.amount), 0);
+  const lastTotal = lastSpend.reduce((s, x) => s + Number(x.amount), 0);
+  const billsTotal = db.bills.reduce((s, b) => s + Number(b.amount), 0);
+
+  // ── Monthly income estimate (same logic as renderHome)
+  const yr = now.getFullYear(), mo = now.getMonth();
+  const monthlyIncome = db.income.reduce((s, i) => {
+    if (i.freq === 'fourweekly') {
+      const cnt = fourWeeklyDatesInMonth(i.anchorDate, yr, mo).length || 1;
+      return s + Number(i.amount) * cnt;
+    }
+    if (i.freq === 'weekly') return s + Number(i.amount) * thursdaysInMonth(i.weekDay ?? 4, yr, mo);
+    return s + Number(i.amount);
+  }, 0);
+
+  // ── Financial health bars ──
+  const billsPct   = monthlyIncome > 0 ? Math.min(100, (billsTotal / monthlyIncome) * 100) : 0;
+  const spendPct   = monthlyIncome > 0 ? Math.min(100, (thisTotal / monthlyIncome) * 100) : 0;
+  const totalOutPct = Math.min(100, billsPct + spendPct);
+  const leftover   = monthlyIncome - billsTotal - thisTotal;
+  const healthScore = monthlyIncome > 0 ? Math.max(0, Math.round((leftover / monthlyIncome) * 100)) : 0;
+  const scoreColor = healthScore >= 20 ? 'var(--green)' : healthScore >= 5 ? 'var(--amber)' : 'var(--red)';
+  const scoreLabel = healthScore >= 20 ? '✅ Healthy' : healthScore >= 5 ? '⚠️ Tight' : '🔴 Stretched';
+
+  document.getElementById('health-summary').innerHTML =
+    `<div style="display:flex;align-items:center;justify-content:space-between">
+       <div style="font-size:28px;font-weight:800;color:${scoreColor}">${healthScore}%</div>
+       <div style="text-align:right">
+         <div style="font-size:14px;font-weight:600">${scoreLabel}</div>
+         <div style="font-size:12px;color:var(--text2)">${fmtGBP(Math.max(0, leftover))} estimated left after bills & spend</div>
+       </div>
+     </div>`;
+
+  document.getElementById('health-bars').innerHTML = `
+    <div class="health-bar-wrap">
+      <div class="health-bar-label"><span>Bills (${Math.round(billsPct)}% of income)</span><span>${fmtGBP(billsTotal)}</span></div>
+      <div class="health-bar-track"><div class="health-bar-fill" style="width:${billsPct}%;background:var(--accent)"></div></div>
+    </div>
+    <div class="health-bar-wrap">
+      <div class="health-bar-label"><span>Spending (${Math.round(spendPct)}% of income)</span><span>${fmtGBP(thisTotal)}</span></div>
+      <div class="health-bar-track"><div class="health-bar-fill" style="width:${spendPct}%;background:var(--amber)"></div></div>
+    </div>
+    <div class="health-bar-wrap">
+      <div class="health-bar-label"><span>Total outgoings</span><span>${fmtGBP(billsTotal + thisTotal)} / ${fmtGBP(monthlyIncome)}</span></div>
+      <div class="health-bar-track"><div class="health-bar-fill" style="width:${totalOutPct}%;background:${totalOutPct > 90 ? 'var(--red)' : totalOutPct > 75 ? 'var(--amber)' : 'var(--green)'}"></div></div>
+    </div>`;
+
+  // ── Spending trends table ──
+  const allCats = [...new Set([...Object.keys(thisCats), ...Object.keys(lastCats)])];
+  allCats.sort((a, b) => (thisCats[b] || 0) - (thisCats[a] || 0));
+
+  const trendsEl = document.getElementById('trends-table');
+  if (allCats.length === 0) {
+    trendsEl.innerHTML = '<div class="empty" style="padding:16px 0"><p>Log some spending to see trends</p></div>';
+  } else {
+    const trendRows = allCats.map(cat => {
+      const t = thisCats[cat] || 0;
+      const l = lastCats[cat] || 0;
+      const diff = t - l;
+      const pct = l > 0 ? Math.round((diff / l) * 100) : null;
+      let badge, cls;
+      if (l === 0) { badge = 'NEW'; cls = 'trend-same'; }
+      else if (Math.abs(pct) < 3) { badge = '→ same'; cls = 'trend-same'; }
+      else if (diff > 0) { badge = `▲ ${pct}%`; cls = 'trend-up'; }
+      else { badge = `▼ ${Math.abs(pct)}%`; cls = 'trend-down'; }
+      return `<div class="trend-row">
+        <div class="trend-cat">${cat}</div>
+        <div class="trend-amounts">${fmtGBP(t)}<br><span style="color:var(--text3)">${l > 0 ? 'was ' + fmtGBP(l) : '—'}</span></div>
+        <div class="trend-badge ${cls}">${badge}</div>
+      </div>`;
+    });
+    const lastMonthName = lastDate.toLocaleString('en-GB', { month: 'long' });
+    const diff = thisTotal - lastTotal;
+    const summaryColor = diff > 0 ? 'var(--red)' : 'var(--green)';
+    const summaryText = lastTotal > 0
+      ? `Total spending ${diff >= 0 ? 'up' : 'down'} <strong style="color:${summaryColor}">${fmtGBP(Math.abs(diff))}</strong> vs ${lastMonthName}`
+      : `No spending data for ${lastMonthName} to compare`;
+    trendsEl.innerHTML = `<div style="font-size:13px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">${summaryText}</div>` + trendRows.join('');
+  }
+
+  // ── Smart tips ──
+  const tips = [];
+
+  // Biggest spend category this month
+  const topCat = allCats[0];
+  if (topCat && thisCats[topCat]) {
+    const pctOfIncome = monthlyIncome > 0 ? Math.round((thisCats[topCat] / monthlyIncome) * 100) : 0;
+    tips.push({ icon: '🏆', text: `Your biggest spend category this month is <strong>${topCat}</strong> at <strong>${fmtGBP(thisCats[topCat])}</strong> — that's ${pctOfIncome}% of monthly income.` });
+  }
+
+  // Biggest increase category
+  const increases = allCats
+    .filter(c => lastCats[c] > 0 && thisCats[c] > lastCats[c])
+    .map(c => ({ cat: c, diff: thisCats[c] - lastCats[c], pct: Math.round(((thisCats[c] - lastCats[c]) / lastCats[c]) * 100) }))
+    .sort((a, b) => b.diff - a.diff);
+  if (increases.length > 0) {
+    const top = increases[0];
+    tips.push({ icon: '📈', text: `<strong>${top.cat}</strong> spending is up <strong>${fmtGBP(top.diff)}</strong> (${top.pct}%) compared to last month. Could any of this be reduced?` });
+  }
+
+  // Biggest decrease (positive)
+  const decreases = allCats
+    .filter(c => lastCats[c] > 0 && thisCats[c] < lastCats[c])
+    .map(c => ({ cat: c, saved: lastCats[c] - thisCats[c] }))
+    .sort((a, b) => b.saved - a.saved);
+  if (decreases.length > 0) {
+    const top = decreases[0];
+    tips.push({ icon: '🎉', text: `Great work — <strong>${top.cat}</strong> spending is down <strong>${fmtGBP(top.saved)}</strong> vs last month.` });
+  }
+
+  // Bills as % of income warning
+  if (billsPct > 60) {
+    tips.push({ icon: '⚠️', text: `Bills take up <strong>${Math.round(billsPct)}%</strong> of your income (${fmtGBP(billsTotal)}). Look for any subscriptions or bills you could reduce or cancel.` });
+  }
+
+  // Leftover savings tip
+  if (leftover > 0 && monthlyIncome > 0) {
+    const savePct = Math.round((leftover / monthlyIncome) * 100);
+    if (savePct >= 10) {
+      tips.push({ icon: '💰', text: `You have an estimated <strong>${fmtGBP(leftover)}</strong> left this month. Even saving <strong>${fmtGBP(Math.round(leftover * 0.5 / 10) * 10)}</strong> of it would build a buffer for emergencies.` });
+    } else {
+      tips.push({ icon: '💡', text: `With <strong>${fmtGBP(leftover)}</strong> estimated leftover, the budget is tight. Prioritise essentials and pause any non-urgent spending until after bills clear.` });
+    }
+  } else if (leftover <= 0) {
+    tips.push({ icon: '🔴', text: `Outgoings this month exceed income by <strong>${fmtGBP(Math.abs(leftover))}</strong>. Review one-off or variable bills — even small reductions add up.` });
+  }
+
+  // New category warning
+  const newCats = allCats.filter(c => !lastCats[c] && thisCats[c]);
+  if (newCats.length > 0) {
+    tips.push({ icon: '🆕', text: `New spending category this month: <strong>${newCats.join(', ')}</strong>. Make sure this is budgeted for.` });
+  }
+
+  // No spending logged
+  if (tips.length === 0) {
+    tips.push({ icon: '📋', text: 'Log your spending regularly to unlock personalised tips and trends.' });
+  }
+
+  document.getElementById('insights-tips').innerHTML = tips.map(t =>
+    `<div class="tip-item"><div class="tip-icon">${t.icon}</div><div>${t.text}</div></div>`
+  ).join('');
+
+  renderSavingsPlan(monthlyIncome, billsTotal);
+}
+
+// ── SAVINGS PLAN ──────────────────────────────────────────────────
+function renderSavingsPlan(monthlyIncome, billsTotal) {
+  // ── Research-backed recommended budget for this household ─────────
+  // Household: 2 adults, 4 children, 3 dogs, 3 lizards. No fuel costs.
+  // All figures based on UK 2025/26 averages.
+  const RECOMMENDED = [
+    {
+      label: 'Groceries & household',
+      detail: '6 people — food, cleaning products, toiletries',
+      amount: 1600,
+    },
+    {
+      label: 'Dog food & care',
+      detail: '3 dogs — food £42/dog, vet fund £28/dog, flea/worm £12/dog',
+      amount: 246,
+      // Quality dry food medium dog: ~£42/mo. Monthly vet savings pot: ~£28.
+      // Parasite treatments amortised: ~£12/mo. Total per dog ≈ £82.
+    },
+    {
+      label: 'Lizard food & supplies',
+      detail: '3 lizards — live food, veg, UVB bulbs, heating electricity',
+      amount: 80,
+      // Live insects (locusts/crickets): ~£18/lizard/mo = £54.
+      // Fresh greens: £8/mo. UVB + heating electricity: £18/mo total.
+    },
+    {
+      label: 'Children — activities & school',
+      detail: '4 children — clubs, trips, school supplies, pocket money',
+      amount: 200,
+      // £50/child: school trips, uniform top-ups, after-school clubs.
+    },
+    {
+      label: 'Clothing & shoes (family)',
+      detail: 'Growing kids need regular replacements',
+      amount: 100,
+      // UK ONS clothing spend family of 6: ~£85-120/mo.
+    },
+    {
+      label: 'Eating out & takeaways',
+      detail: 'Family meals out, occasional takeaway',
+      amount: 120,
+      // 1 family meal out (~£60) + 1-2 takeaways (~£30-40). Realistic treat budget.
+    },
+    {
+      label: 'Entertainment & days out',
+      detail: 'Cinema, days out, streaming, family activities',
+      amount: 150,
+      // Family of 6 cinema/attraction: £60-80 per trip. 1 trip + home entertainment.
+    },
+    {
+      label: 'Household buffer',
+      detail: 'Unexpected repairs, replacing things that break, gifts',
+      amount: 120,
+      // Experts recommend ~2% of household value/yr for maintenance; £120/mo is conservative.
+    },
+  ];
+
+  const totalRecommended = RECOMMENDED.reduce((s, r) => s + r.amount, 0);
+  const totalOut = billsTotal + totalRecommended;
+  const potentialSaving = monthlyIncome - totalOut;
+
+  // Savings tiers (conservative, achievable, ambitious)
+  const conservative = Math.max(0, Math.round(potentialSaving * 0.3 / 10) * 10);
+  const achievable   = Math.max(0, Math.round(potentialSaving * 0.5 / 10) * 10);
+  const ambitious    = Math.max(0, Math.round(potentialSaving * 0.75 / 10) * 10);
+
+  // ── Budget breakdown table ──
+  document.getElementById('budget-breakdown').innerHTML = `
+    ${RECOMMENDED.map(r => `
+      <div class="budget-row">
+        <div class="budget-label">${r.label}<small>${r.detail}</small></div>
+        <div class="budget-amount">${fmtGBP(r.amount)}</div>
+      </div>`).join('')}
+    <div class="budget-row" style="margin-top:4px;border-top:2px solid var(--border);padding-top:12px">
+      <div class="budget-label" style="font-weight:700">Your fixed bills</div>
+      <div class="budget-amount" style="color:var(--red)">${fmtGBP(billsTotal)}</div>
+    </div>
+    <div class="budget-row" style="font-weight:700;font-size:14px">
+      <div class="budget-label">Total monthly outgoings</div>
+      <div class="budget-amount" style="color:var(--text1)">${fmtGBP(totalOut)}</div>
+    </div>
+    <div class="budget-row" style="font-weight:700;font-size:14px">
+      <div class="budget-label">Monthly income</div>
+      <div class="budget-amount" style="color:var(--green)">${monthlyIncome > 0 ? fmtGBP(monthlyIncome) : '—'}</div>
+    </div>`;
+
+  // ── Savings tiers ──
+  const planEl = document.getElementById('savings-plan');
+  if (monthlyIncome <= 0) {
+    planEl.innerHTML = '<div class="empty"><p>Add your income sources to see savings targets</p></div>';
+    return;
+  }
+
+  if (potentialSaving <= 0) {
+    planEl.innerHTML = `<div class="alert alert-urgent" style="margin:0">
+      <span class="alert-icon">⚠️</span>
+      <div>Based on recommended budgets, outgoings exceed income by <strong>${fmtGBP(Math.abs(potentialSaving))}</strong>. Focus on reducing bills first.</div>
+    </div>`;
+    return;
+  }
+
+  planEl.innerHTML = `
+    <div style="font-size:13px;color:var(--text2);margin-bottom:12px">
+      After your bills (${fmtGBP(billsTotal)}) and a full realistic budget (${fmtGBP(totalRecommended)}),
+      there's approximately <strong style="color:var(--green)">${fmtGBP(potentialSaving)}</strong>/month available.
+      Pick a savings target that works for you:
+    </div>
+    <div class="savings-tier" style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.25)">
+      <h4 style="color:var(--green)">🐢 Conservative</h4>
+      <div class="amount" style="color:var(--green)">${fmtGBP(conservative)}<span style="font-size:14px;font-weight:400"> /month</span></div>
+      <div class="detail" style="color:var(--green)">${fmtGBP(conservative * 12)}/year · Leaves plenty of breathing room</div>
+    </div>
+    <div class="savings-tier" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25)">
+      <h4 style="color:var(--accent)">⚡ Achievable</h4>
+      <div class="amount" style="color:var(--accent)">${fmtGBP(achievable)}<span style="font-size:14px;font-weight:400"> /month</span></div>
+      <div class="detail" style="color:var(--accent)">${fmtGBP(achievable * 12)}/year · Realistic with mindful spending</div>
+    </div>
+    <div class="savings-tier" style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.25)">
+      <h4 style="color:var(--amber)">🚀 Ambitious</h4>
+      <div class="amount" style="color:var(--amber)">${fmtGBP(ambitious)}<span style="font-size:14px;font-weight:400"> /month</span></div>
+      <div class="detail" style="color:var(--amber)">${fmtGBP(ambitious * 12)}/year · Requires staying close to the recommended budgets above</div>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-top:10px;line-height:1.5">
+      💡 <strong>Tip:</strong> Even the conservative target builds an emergency fund of ${fmtGBP(conservative * 6)} in 6 months — enough to cover unexpected costs without going into debt.
+      These figures assume all bills are added to the Bills tab.
+    </div>`;
+}
+
+// ── SETTINGS ──────────────────────────────────────────────────────
+function renderSettings() {
+  document.getElementById('settings-name').textContent = db.profile.name || 'Not set';
+  document.getElementById('settings-household').textContent = db.profile.household || 'Our Family Budget';
+  document.getElementById('firebase-config-input').value = JSON.stringify(FIREBASE_CONFIG, null, 2);
+  document.getElementById('notif-days').value = db.settings?.notifDays || 3;
+  updateSyncBadge(!!firebaseDb);
+}
+
+function saveSettings() {
+  if (!db.settings) db.settings = {};
+  db.settings.notifDays = parseInt(document.getElementById('notif-days').value);
+  save();
+}
+
+function exportData() {
+  const json = JSON.stringify(db, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'family-budget-backup.json';
+  a.click();
+}
+
+function importDataPrompt() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const imported = JSON.parse(ev.target.result);
+        if (!confirm('This will overwrite all current data. Continue?')) return;
+        db = imported;
+        save();
+        renderAll();
+        alert('Data imported successfully!');
+      } catch(e) { alert('Invalid file'); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function resetData() {
+  if (!confirm('⚠️ This will delete ALL your data. Are you sure?')) return;
+  if (!confirm('Really sure? This cannot be undone.')) return;
+  localStorage.removeItem('familyBudget');
+  location.reload();
+}
+
+// ── Notifications ─────────────────────────────────────────────────
+function checkNotifPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    document.getElementById('notif-bar').style.display = 'block';
+  }
+}
+
+function requestNotifPermission() {
+  if (!('Notification' in window)) { alert('Notifications not supported on this device'); return; }
+  Notification.requestPermission().then(p => {
+    if (p === 'granted') {
+      document.getElementById('notif-bar').style.display = 'none';
+      scheduleReminders();
+      alert('Notifications enabled! You\'ll be reminded before bills go out.');
+    }
+  });
+}
+
+document.getElementById('notif-bar').addEventListener('click', requestNotifPermission);
+
+function scheduleReminders() {
+  if (!navigator.serviceWorker?.controller) return;
+  const bills = db.bills.filter(b => b.dueDay && !isBillPaid(b));
+  navigator.serviceWorker.controller.postMessage({ type: 'SCHEDULE_REMINDERS', bills });
+}
+
+// ── Modals ────────────────────────────────────────────────────────
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+
+function openAddBillModal() {
+  // Clear form for a fresh "Add" — don't reset when editing
+  document.getElementById('bill-edit-id').value = '';
+  document.getElementById('bill-modal-title').textContent = 'Add Bill';
+  document.getElementById('bill-name').value = '';
+  document.getElementById('bill-amount').value = '';
+  document.getElementById('bill-day').value = '';
+  document.getElementById('bill-icon').value = '📦';
+  openModal('add-bill-modal');
+}
+
+function openAddIncomeModal() {
+  document.getElementById('income-edit-id').value = '';
+  document.getElementById('income-modal-title').textContent = 'Add Income';
+  document.getElementById('income-name').value = '';
+  document.getElementById('income-amount').value = '';
+  document.getElementById('income-day').value = '';
+  document.getElementById('income-freq').value = 'monthly';
+  openModal('add-income-modal');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  ['bill-edit-id','income-edit-id','oneoff-edit-id'].forEach(i => {
+    const el = document.getElementById(i);
+    if (el) el.value = '';
+  });
+}
+
+function closeModalOnBg(e, id) {
+  if (e.target === document.getElementById(id)) closeModal(id);
+}
+
+// ── Built-in Firebase config ──────────────────────────────────────
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDN_Gx0P5TiZWX9H4dMG_Gx2yxpIUjDfYY",
+  authDomain: "kimbahsbudget-8f0a0.firebaseapp.com",
+  projectId: "kimbahsbudget-8f0a0",
+  storageBucket: "kimbahsbudget-8f0a0.firebasestorage.app",
+  messagingSenderId: "257091892758",
+  appId: "1:257091892758:web:3bcd25e8f933dbc117a737"
+};
+
+// ── Init ──────────────────────────────────────────────────────────
+function renderAll() {
+  renderHome();
+  renderSettings();
+}
+
+function init() {
+  load();
+  // Always use built-in Firebase config
+  db.firebaseConfig = FIREBASE_CONFIG;
+  // Set today's date in spend form
+  document.getElementById('spend-date').value = todayStr();
+
+  if (db._setupDone) {
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    renderAll();
+    initFirebase(FIREBASE_CONFIG);
+    checkNotifPermission();
+  } else {
+    document.getElementById('setup-screen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+  }
+
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      // Check for waiting SW (update already downloaded)
+      if (reg.waiting) showUpdateBar();
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            showUpdateBar();
+          }
+        });
+      });
+    }).catch(e => console.warn('SW error:', e));
+
+    // SW_UPDATED message from newly activated SW
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data && e.data.type === 'SW_UPDATED') showUpdateBar();
+    });
+  }
+
+  function showUpdateBar() {
+    const bar = document.getElementById('update-bar');
+    if (bar) { bar.style.display = 'flex'; }
+  }
+}
+
+init();
+</script>
+</body>
+</html>
