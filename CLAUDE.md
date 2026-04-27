@@ -17,7 +17,7 @@ There is no build step. The app is deployed as static files.
 
 - **Local testing:** `npx serve .` or VS Code Live Server (must be HTTP, not `file:///`)
 - **Production:** Drag-drop to Netlify. See `SETUP.md` for user-facing guide.
-- **After every deploy:** increment `CACHE_NAME` in `sw.js` (currently `'family-budget-v11'`) to force clients to pick up updated files.
+- **After every deploy:** increment `CACHE_NAME` in `sw.js` (currently `'family-budget-v12'`) to force clients to pick up updated files.
 
 There are no tests, no linting, and no CI pipeline.
 
@@ -42,10 +42,10 @@ Data is stored in `localStorage` under the key `'familyBudget'`. Root object sha
 ```js
 {
   profile:        { name, household },
-  settings:       { notifDays: 3 },
+  settings:       { notifDays: 3, categories: [{name, emoji, budget}] },
   bills:          [{ id, name, amount, dueDay, icon, paid: [monthKeys] }],
   income:         [{ id, name, amount, day, anchorDate, freq, weekDay, note }],
-  spending:       [{ id, amount, date, cat, note }],
+  spending:       [{ id, amount, date, cat, note, repeat, repeatOf }],
   oneoffs:        [{ id, name, amount, date, icon, note, paid: bool }],
   openingBalance: null | { amount: number, date: 'YYYY-MM-DD' },
   firebaseConfig: { ... },  // always set to FIREBASE_CONFIG constant at init
@@ -116,6 +116,7 @@ The Firebase SDK is loaded from CDN lazily at `initFirebase()` call time. Sync k
 | `thursdaysInMonth(weekDay, yr, mo, upToDay)` | ~1001 | Counts weekday occurrences in a month |
 | `incomeReceivedByDate(cutoffDate)` | ~1064 | Total income received up to a cutoff date (inner fn of renderHome) |
 | `billAfterOB(b)` | ~1103 | Excludes bills whose dueDay predates the opening balance (inner fn) |
+| `applyRecurringSpend()` | ~2430 | Auto-adds next instances of recurring spending on load |
 
 ### Global state variables
 | Variable | Purpose |
@@ -190,7 +191,7 @@ Tabs other than Home and Settings are rendered lazily when the user navigates to
 
 ## Service Worker (`sw.js`)
 
-- Cache version: `'family-budget-v11'` — **increment on every deploy**
+- Cache version: `'family-budget-v12'` — **increment on every deploy**
 - Cache strategy: network-first for HTML navigation, cache-first for all other assets
 - On activate: deletes old caches, claims all clients, posts `SW_UPDATED` message to open tabs
 - Handles `SCHEDULE_REMINDERS` message: reads bill list and fires OS notifications for upcoming bills
