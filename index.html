@@ -441,17 +441,7 @@ input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner
         <div class="form-row">
           <div class="input-wrap">
             <label>Category</label>
-            <select id="spend-cat">
-              <option value="Shopping">🛒 Shopping</option>
-              <option value="Pocket Money">💰 Pocket Money</option>
-              <option value="Eating Out">🍔 Eating Out</option>
-              <option value="Fuel">⛽ Fuel</option>
-              <option value="Kids">👧 Kids</option>
-              <option value="Clothing">👕 Clothing</option>
-              <option value="Entertainment">🎬 Entertainment</option>
-              <option value="Health">💊 Health</option>
-              <option value="Other">📦 Other</option>
-            </select>
+            <select id="spend-cat"></select>
           </div>
         </div>
         <div class="form-row">
@@ -460,9 +450,23 @@ input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner
             <input type="text" id="spend-note" placeholder="What did you buy?">
           </div>
         </div>
-        <button class="btn btn-primary" onclick="logSpend()">Add Spending</button>
+        <div class="form-row">
+          <div class="input-wrap">
+            <label>Repeat</label>
+            <select id="spend-repeat">
+              <option value="none">No repeat</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </div>
+        </div>
+        <input type="hidden" id="spend-edit-id">
+        <button class="btn btn-primary" id="spend-submit-btn" onclick="logSpend()">Add Spending</button>
       </div>
 
+      <div style="margin-bottom:10px">
+        <input type="search" id="spend-search" placeholder="🔍 Search by category or note…" oninput="renderSpend()" style="width:100%">
+      </div>
       <div class="toggle-wrap" id="spend-toggle">
         <button class="toggle-btn active" onclick="setSpendView('week')">This Week</button>
         <button class="toggle-btn" onclick="setSpendView('month')">This Month</button>
@@ -548,6 +552,16 @@ input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner
         </div>
       </div>
 
+      <div class="card" style="margin-bottom:12px">
+        <h3>Spending Categories</h3>
+        <div id="cat-list"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+          <input type="text" id="new-cat-name" placeholder="Category name" style="flex:1">
+          <input type="text" id="new-cat-emoji" placeholder="📦" style="width:64px;text-align:center">
+          <button class="btn btn-primary btn-sm" onclick="addCategory()" style="white-space:nowrap">+ Add</button>
+        </div>
+      </div>
+
       <div class="card">
         <h3>Data</h3>
         <div style="display:flex;flex-direction:column;gap:8px">
@@ -561,6 +575,11 @@ input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner
       <!-- INSIGHTS -->
       <div id="tab-insights" class="tab-panel" style="display:none">
         <h2>Insights</h2>
+
+        <div class="card" style="margin-bottom:12px">
+          <h3>📊 6-Month Overview</h3>
+          <div id="spending-chart"></div>
+        </div>
 
         <div class="card" style="margin-bottom:12px">
           <h3>Financial Health</h3>
@@ -772,10 +791,33 @@ input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner
 </div>
 
 <script>
+// ── Default spending categories ───────────────────────────────────
+const DEFAULT_CATS = [
+  { name: 'Shopping',     emoji: '🛒', budget: 1600 },
+  { name: 'Pocket Money', emoji: '💰', budget: 400  },
+  { name: 'Eating Out',   emoji: '🍔', budget: 150  },
+  { name: 'Fuel',         emoji: '⛽', budget: 100  },
+  { name: 'Kids',         emoji: '👧', budget: 200  },
+  { name: 'Clothing',     emoji: '👕', budget: 150  },
+  { name: 'Entertainment',emoji: '🎬', budget: 150  },
+  { name: 'Health',       emoji: '💊', budget: 100  },
+  { name: 'Other',        emoji: '📦', budget: 200  },
+];
+function getCats() { return (db.settings && db.settings.categories) ? db.settings.categories : DEFAULT_CATS; }
+function getCatEmoji(name) { const c = getCats().find(x => x.name === name); return c ? c.emoji : '📦'; }
+function getCatBudget(name) { const c = getCats().find(x => x.name === name); return c ? c.budget : 200; }
+function populateSpendCatSelect() {
+  const sel = document.getElementById('spend-cat');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = getCats().map(c => `<option value="${c.name}">${c.emoji} ${c.name}</option>`).join('');
+  if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+}
+
 // ── Data model ──────────────────────────────────────────────────
 const DEFAULT_DATA = {
   profile: { name: '', household: 'Our Family Budget' },
-  settings: { notifDays: 3 },
+  settings: { notifDays: 3, categories: null },
   bills: [
     { id: 'b1', name: 'Mother', amount: 150, dueDay: null, icon: '👨‍👩‍👧', paid: [] },
     { id: 'b2', name: 'British Gas', amount: 263, dueDay: null, icon: '⚡', paid: [] },
@@ -837,6 +879,10 @@ function migrateData() {
       return true;
     });
   }
+
+  // 3. Seed spending categories for existing installs
+  if (!db.settings) db.settings = {};
+  if (!db.settings.categories) db.settings.categories = JSON.parse(JSON.stringify(DEFAULT_CATS));
 }
 
 // ── Storage helpers ──────────────────────────────────────────────
@@ -1021,7 +1067,7 @@ function fmtGBP(n) { return '£' + Number(n).toLocaleString('en-GB', {minimumFra
 
 // ── Bill paid helpers ─────────────────────────────────────────────
 function billPaidKey() { return monthKey(); }
-function isBillPaid(bill) { return (bill.paid || []).includes(billPaidKey()); }
+function isBillPaid(bill, mk) { return (bill.paid || []).includes(mk || billPaidKey()); }
 function toggleBillPaid(id) {
   const bill = db.bills.find(b => b.id === id);
   if (!bill) return;
@@ -1046,7 +1092,7 @@ function showTab(name) {
   document.getElementById('content').scrollTop = 0;
   if (name === 'home') renderHome();
   if (name === 'bills') renderBills();
-  if (name === 'spend') renderSpend();
+  if (name === 'spend') { populateSpendCatSelect(); renderSpend(); }
   if (name === 'income') renderIncome();
   if (name === 'insights') renderInsights();
   if (name === 'settings') renderSettings();
@@ -1175,6 +1221,32 @@ function renderHome() {
     return `<div class="alert ${cls}"><span class="alert-icon">${icon}</span><div><strong>${b.name}</strong> ${fmtGBP(b.amount)} due ${when} (${ordinal(b.dueDay)})</div></div>`;
   }).join('');
 
+  // Reconciliation overdue warning
+  if (hasOB) {
+    const obDateObj = new Date(obDate + 'T12:00:00');
+    const daysSinceOB = Math.floor((now - obDateObj) / 86400000);
+    if (daysSinceOB > 7) {
+      alertsEl.innerHTML += `<div class="alert alert-warn" style="cursor:pointer" onclick="openSetBalanceModal()">
+        <span class="alert-icon">📍</span>
+        <div><strong>Balance overdue for reconciliation</strong><br><span style="font-size:12px">Last set ${daysSinceOB} day${daysSinceOB !== 1 ? 's' : ''} ago — tap to update from your banking app</span></div>
+      </div>`;
+    }
+  }
+
+  // New-month bill reset notice (1st–3rd of month, dismissable)
+  const resetKey = monthKey();
+  if (now.getDate() <= 3 && db._lastResetNotice !== resetKey) {
+    const unpaidCount = db.bills.filter(b => !isBillPaid(b)).length;
+    if (unpaidCount > 0) {
+      alertsEl.innerHTML += `<div class="alert alert-info">
+        <span class="alert-icon">📅</span>
+        <div><strong>New month — ${unpaidCount} bill${unpaidCount !== 1 ? 's' : ''} reset</strong><br>
+        <span style="font-size:12px">Tap Bills to review what's due &nbsp;·&nbsp;
+        <button onclick="dismissResetNotice('${resetKey}')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;padding:0;font-weight:600;text-decoration:underline">Dismiss</button></span></div>
+      </div>`;
+    }
+  }
+
   // Recent spending
   const recentEl = document.getElementById('home-recent-spend');
   const recent = [...db.spending].sort((a,b) => b.date.localeCompare(a.date)).slice(0,4);
@@ -1187,10 +1259,10 @@ function renderHome() {
   // Month progress bars
   const progressEl = document.getElementById('month-progress-list');
   const categories = [...new Set(db.spending.filter(s => s.date.slice(0,7) === mk).map(s => s.cat))];
-  const catBudgets = { Shopping: 1600, 'Pocket Money': 400, 'Eating Out': 150, Fuel: 100, Kids: 200, Other: 200 };
+  // catBudgets now from getCatBudget() — uses db.settings.categories
   progressEl.innerHTML = categories.map(cat => {
     const catSpent = db.spending.filter(s => s.cat === cat && s.date.slice(0,7) === mk).reduce((t,s) => t+Number(s.amount),0);
-    const budget = catBudgets[cat] || 200;
+    const budget = getCatBudget(cat);
     const pct = Math.min(100, (catSpent / budget) * 100);
     const color = pct > 90 ? 'var(--red)' : pct > 70 ? 'var(--amber)' : 'var(--green)';
     return `<div style="margin-bottom:12px">
@@ -1323,9 +1395,10 @@ function getDayEvents(d, dStr) {
       }
     }
   });
-  // Regular bills (unpaid)
+  // Regular bills — only show if not paid for the month of this forecast day
+  const dayMk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   db.bills.forEach(b => {
-    if (b.dueDay && d.getDate() === b.dueDay && !isBillPaid(b)) {
+    if (b.dueDay && d.getDate() === b.dueDay && !isBillPaid(b, dayMk)) {
       events.push({ type: 'out', label: b.name, amount: b.amount });
     }
   });
@@ -1554,17 +1627,21 @@ function renderOneoffs() {
 }
 
 // ── SPEND ─────────────────────────────────────────────────────────
-const catEmojis = { Shopping:'🛒','Pocket Money':'💰','Eating Out':'🍔',Fuel:'⛽',Kids:'👧',Clothing:'👕',Entertainment:'🎬',Health:'💊',Other:'📦' };
+// catEmojis replaced by getCatEmoji() helper (categories now stored in db.settings.categories)
 
 function spendHtml(s) {
-  const em = catEmojis[s.cat] || '📦';
+  const em = getCatEmoji(s.cat);
+  const repeatBadge = s.repeat && s.repeat !== 'none'
+    ? ` <span style="font-size:10px;color:var(--accent);font-weight:700;vertical-align:middle">🔁 ${s.repeat}</span>`
+    : (s.repeatOf ? ` <span style="font-size:10px;color:var(--text3);vertical-align:middle">🔁 auto</span>` : '');
   return `<div class="spend-entry">
     <div class="spend-cat" style="background:rgba(248,113,113,0.12)">${em}</div>
     <div class="spend-info">
-      <div class="spend-name">${s.note || s.cat}</div>
+      <div class="spend-name">${s.note || s.cat}${repeatBadge}</div>
       <div class="spend-date">${s.cat} · ${fmtDateNice(s.date)}</div>
     </div>
     <div class="spend-amt">${fmtGBP(s.amount)}</div>
+    <button class="del-btn" onclick="editSpend('${s.id}')">✏️</button>
     <button class="del-btn" onclick="deleteSpend('${s.id}')">🗑</button>
   </div>`;
 }
@@ -1595,6 +1672,13 @@ function renderSpend() {
   } else if (currentSpendView === 'month') {
     entries = entries.filter(s => s.date.slice(0,7) === monthKey());
   }
+  const query = (document.getElementById('spend-search')?.value || '').toLowerCase().trim();
+  if (query) {
+    entries = entries.filter(s =>
+      (s.note || '').toLowerCase().includes(query) ||
+      (s.cat || '').toLowerCase().includes(query)
+    );
+  }
   entries.sort((a,b) => b.date.localeCompare(a.date));
   const el = document.getElementById('spend-log');
   el.innerHTML = entries.length
@@ -1607,12 +1691,44 @@ function logSpend() {
   const date = document.getElementById('spend-date').value || todayStr();
   const cat = document.getElementById('spend-cat').value;
   const note = document.getElementById('spend-note').value.trim();
+  const repeat = document.getElementById('spend-repeat')?.value || 'none';
+  const editId = document.getElementById('spend-edit-id')?.value || '';
   if (!amount || isNaN(amount) || amount <= 0) { alert('Enter a valid amount'); return; }
-  db.spending.push({ id: uid(), amount, date, cat, note });
+  if (editId) {
+    const entry = db.spending.find(s => s.id === editId);
+    if (entry) { entry.amount = amount; entry.date = date; entry.cat = cat; entry.note = note; entry.repeat = repeat; }
+    document.getElementById('spend-edit-id').value = '';
+    document.getElementById('spend-submit-btn').textContent = 'Add Spending';
+  } else {
+    const entry = { id: uid(), amount, date, cat, note };
+    if (repeat !== 'none') entry.repeat = repeat;
+    db.spending.push(entry);
+  }
   save();
   document.getElementById('spend-amount').value = '';
   document.getElementById('spend-note').value = '';
+  if (document.getElementById('spend-repeat')) document.getElementById('spend-repeat').value = 'none';
   renderSpend();
+  renderHome();
+}
+
+function editSpend(id) {
+  const s = db.spending.find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('spend-amount').value = s.amount;
+  document.getElementById('spend-date').value = s.date;
+  document.getElementById('spend-cat').value = s.cat;
+  document.getElementById('spend-note').value = s.note || '';
+  if (document.getElementById('spend-repeat')) document.getElementById('spend-repeat').value = s.repeat || 'none';
+  document.getElementById('spend-edit-id').value = id;
+  document.getElementById('spend-submit-btn').textContent = 'Update Spending';
+  document.getElementById('content').scrollTop = 0;
+  showTab('spend');
+}
+
+function dismissResetNotice(key) {
+  db._lastResetNotice = key;
+  save();
   renderHome();
 }
 
@@ -1978,6 +2094,42 @@ function renderInsights() {
   ).join('');
 
   renderSavingsPlan(monthlyIncome, billsTotal);
+  renderSpendingChart();
+}
+
+// ── SPENDING CHART ─────────────────────────────────────────────────
+function renderSpendingChart() {
+  const el = document.getElementById('spending-chart');
+  if (!el) return;
+  const now = today();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const label = d.toLocaleString('en-GB', { month: 'short', year: '2-digit' });
+    const total = db.spending.filter(s => s.date.slice(0, 7) === mk).reduce((t, s) => t + Number(s.amount), 0);
+    months.push({ label, mk, total });
+  }
+  const maxVal = Math.max(...months.map(m => m.total), 1);
+  const hasData = months.some(m => m.total > 0);
+  if (!hasData) {
+    el.innerHTML = '<div class="empty" style="padding:12px 0"><p>No spending data yet</p></div>';
+    return;
+  }
+  el.innerHTML = months.map(m => {
+    const pct = Math.round((m.total / maxVal) * 100);
+    const isCurrent = m.mk === monthKey();
+    const barColor = isCurrent ? 'var(--accent2)' : 'var(--bg3)';
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+        <span style="color:${isCurrent ? 'var(--accent)' : 'var(--text2)'};font-weight:${isCurrent ? '700' : '400'}">${m.label}${isCurrent ? ' ◀' : ''}</span>
+        <span style="font-weight:600;color:var(--text)">${m.total > 0 ? fmtGBP(m.total) : '—'}</span>
+      </div>
+      <div style="height:8px;border-radius:4px;background:var(--border);overflow:hidden">
+        <div style="width:${pct}%;height:100%;border-radius:4px;background:${barColor};transition:width 0.4s"></div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ── SAVINGS PLAN ──────────────────────────────────────────────────
@@ -2115,6 +2267,50 @@ function renderSettings() {
   document.getElementById('firebase-config-input').value = JSON.stringify(FIREBASE_CONFIG, null, 2);
   document.getElementById('notif-days').value = db.settings?.notifDays || 3;
   updateSyncBadge(!!firebaseDb);
+  renderCategories();
+  populateSpendCatSelect();
+}
+
+function renderCategories() {
+  const el = document.getElementById('cat-list');
+  if (!el) return;
+  const cats = getCats();
+  if (cats.length === 0) { el.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:8px 0">No categories yet</div>'; return; }
+  el.innerHTML = cats.map((c, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:20px">${c.emoji}</span>
+      <span style="flex:1;font-size:14px;font-weight:500">${c.name}</span>
+      ${cats.length > 1 ? `<button class="del-btn" onclick="deleteCategory(${i})" title="Remove category">🗑</button>` : ''}
+    </div>`).join('');
+}
+
+function addCategory() {
+  const nameEl = document.getElementById('new-cat-name');
+  const emojiEl = document.getElementById('new-cat-emoji');
+  const name = nameEl.value.trim();
+  const emoji = emojiEl.value.trim() || '📦';
+  if (!name) { nameEl.focus(); return; }
+  const cats = getCats();
+  if (cats.some(c => c.name.toLowerCase() === name.toLowerCase())) { alert('That category already exists'); return; }
+  cats.push({ name, emoji, budget: 200 });
+  if (!db.settings) db.settings = {};
+  db.settings.categories = cats;
+  save();
+  nameEl.value = ''; emojiEl.value = '';
+  renderCategories();
+  populateSpendCatSelect();
+}
+
+function deleteCategory(index) {
+  const cats = getCats();
+  const cat = cats[index];
+  if (!confirm(`Remove “${cat.name}”? Existing entries using this category won’t be affected.`)) return;
+  cats.splice(index, 1);
+  if (!db.settings) db.settings = {};
+  db.settings.categories = cats;
+  save();
+  renderCategories();
+  populateSpendCatSelect();
 }
 
 function saveSettings() {
@@ -2128,7 +2324,7 @@ function exportData() {
   const blob = new Blob([json], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'family-budget-backup.json';
+  a.download = `family-budget-${todayStr()}.json`;
   a.click();
 }
 
@@ -2236,6 +2432,32 @@ const FIREBASE_CONFIG = {
   appId: "1:257091892758:web:3bcd25e8f933dbc117a737"
 };
 
+// ── RECURRING SPEND ───────────────────────────────────────────────
+function applyRecurringSpend() {
+  const todayD = new Date(todayStr() + 'T12:00:00');
+  const sources = db.spending.filter(s => s.repeat && s.repeat !== 'none' && !s.repeatOf);
+  let changed = false;
+  sources.forEach(src => {
+    let cursor = new Date(src.date + 'T12:00:00');
+    const limit = 52; // safety: max 52 iterations to prevent runaway loops
+    let iters = 0;
+    while (iters++ < limit) {
+      const next = new Date(cursor);
+      if (src.repeat === 'weekly') next.setDate(next.getDate() + 7);
+      else next.setMonth(next.getMonth() + 1);
+      if (next > todayD) break;
+      const nextStr = fmtDate(next);
+      const exists = db.spending.some(s => s.repeatOf === src.id && s.date === nextStr);
+      if (!exists) {
+        db.spending.push({ id: uid(), amount: src.amount, date: nextStr, cat: src.cat, note: src.note, repeatOf: src.id });
+        changed = true;
+      }
+      cursor = next;
+    }
+  });
+  if (changed) localStorage.setItem('familyBudget', JSON.stringify(db));
+}
+
 // ── Init ──────────────────────────────────────────────────────────
 function renderAll() {
   renderHome();
@@ -2248,6 +2470,10 @@ function init() {
   db.firebaseConfig = FIREBASE_CONFIG;
   // Set today's date in spend form
   document.getElementById('spend-date').value = todayStr();
+  // Populate category select on first load
+  populateSpendCatSelect();
+  // Auto-add any overdue recurring spend entries
+  applyRecurringSpend();
 
   if (db._setupDone) {
     document.getElementById('setup-screen').style.display = 'none';
