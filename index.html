@@ -1184,7 +1184,7 @@ function renderHome() {
   heroEl.className = 'balance-amount ' + (balance > 500 ? 'positive' : balance > 100 ? 'warning' : 'negative');
 
   const metaText = hasOB
-    ? `Opening balance £${Number(ob.amount).toFixed(2)} set ${fmtDateNice(obDate)}`
+    ? `Opening balance £${Number(ob.display ?? ob.amount).toFixed(2)} set ${fmtDateNice(obDate)}`
     : `${ordinal(now.getDate())} ${now.toLocaleString('en-GB',{month:'long'})} · Set an opening balance for accuracy`;
   document.getElementById('hero-meta').textContent = metaText;
 
@@ -1893,7 +1893,7 @@ function deleteIncome(id) {
 // ── OPENING BALANCE ───────────────────────────────────────────────
 function openSetBalanceModal() {
   const ob = db.openingBalance;
-  document.getElementById('opening-balance-amount').value = ob ? ob.amount : '';
+  document.getElementById('opening-balance-amount').value = ob ? (ob.display ?? ob.amount) : '';
   document.getElementById('opening-balance-date').value = ob ? ob.date : todayStr();
 
   // Show what the app currently calculates
@@ -1917,10 +1917,34 @@ function reconcileNow() {
 }
 
 function saveOpeningBalance() {
-  const amount = parseFloat(document.getElementById('opening-balance-amount').value);
+  const realBalance = parseFloat(document.getElementById('opening-balance-amount').value);
   const date = document.getElementById('opening-balance-date').value || todayStr();
-  if (isNaN(amount)) { alert('Please enter a valid amount'); return; }
-  db.openingBalance = { amount, date };
+  if (isNaN(realBalance)) { alert('Please enter a valid amount'); return; }
+
+  // Back-calculate the stored OB amount so that the balance formula produces
+  // exactly what the user entered. The formula is:
+  //   balance = storedOB + incomeAfterOB - billsPaid - spent - oneoffs
+  // so: storedOB = realBalance + billsPaid + spent + oneoffs - incomeAfterOB
+  // This handles bills already paid before the OB date being baked into the user's figure.
+  const mk = monthKey();
+  const obDayNum = parseInt(date.split('-')[2]);
+
+  const billsPaidTotal = db.bills
+    .filter(b => isBillPaid(b, mk) && (!b.dueDay || b.dueDay > obDayNum))
+    .reduce((s, b) => s + Number(b.amount), 0);
+
+  const spentTotal = db.spending
+    .filter(s => s.date.slice(0, 7) === mk && s.date >= date)
+    .reduce((t, s) => t + Number(s.amount), 0);
+
+  const oneoffTotal = (db.oneoffs || [])
+    .filter(o => o.paid && o.date.slice(0, 7) === mk && o.date >= date)
+    .reduce((s, o) => s + Number(o.amount), 0);
+
+  const storedAmount = realBalance + billsPaidTotal + spentTotal + oneoffTotal;
+
+  // Store the user's real balance separately for display purposes
+  db.openingBalance = { amount: storedAmount, date, display: realBalance };
   save();
   closeModal('set-balance-modal');
   renderHome();
