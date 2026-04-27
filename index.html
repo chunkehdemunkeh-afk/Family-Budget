@@ -952,8 +952,17 @@ function finishSetup() {
 // ── Date helpers ─────────────────────────────────────────────────
 function today() { return new Date(); }
 function todayStr() { return fmtDate(today()); }
-function fmtDate(d) { return d.toISOString().slice(0,10); }
-function monthKey(d) { return d ? d.slice(0,7) : today().toISOString().slice(0,7); }
+function fmtDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+function monthKey(d) {
+  if (d) return d.slice(0, 7);
+  const n = today();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`;
+}
 function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
 // Returns all payment dates for a 4-weekly income in the given month
 function fourWeeklyDatesInMonth(anchorDate, year, month) {
