@@ -66,6 +66,16 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .health-bar-label { display:flex; justify-content:space-between; font-size:12px; color:var(--text2); margin-bottom:4px; }
 .health-bar-track { height:8px; border-radius:4px; background:var(--border); overflow:hidden; }
 .health-bar-fill { height:100%; border-radius:4px; transition:width 0.4s; }
+
+/* ── Week Forecast ── */
+.week-day { margin-bottom:12px; }
+.week-day-header { font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;padding:4px 0;margin-bottom:4px;border-bottom:1px solid var(--border); }
+.week-day-header.today { color:var(--accent); }
+.week-event { display:flex;align-items:center;padding:6px 0;gap:8px;font-size:13px; }
+.week-event-icon { font-size:15px;flex-shrink:0; }
+.week-event-label { flex:1;color:var(--text1); }
+.week-event-amount { font-weight:600;min-width:72px;text-align:right; }
+.week-day-balance { text-align:right;font-size:11px;font-weight:600;color:var(--text3);padding-top:4px;margin-top:2px;border-top:1px solid var(--border); }
 .budget-row { display:flex; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); gap:8px; font-size:13px; }
 .budget-row:last-child { border-bottom:none; }
 .budget-label { flex:1; }
@@ -325,6 +335,36 @@ input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner
           <div class="stat-label">Spent</div>
           <div class="stat-value" style="color:var(--amber)" id="stat-spent">£0</div>
         </div>
+      </div>
+
+      <div class="card" style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <h3 style="margin:0">📅 Week Ahead</h3>
+          <div style="display:flex;gap:6px">
+            <button id="week-prev-btn" onclick="shiftWeek(-1)" style="background:var(--border);border:none;color:var(--text2);border-radius:6px;padding:4px 8px;font-size:13px;cursor:pointer">◀</button>
+            <span id="week-label" style="font-size:12px;color:var(--text2);align-self:center;white-space:nowrap"></span>
+            <button id="week-next-btn" onclick="shiftWeek(1)" style="background:var(--border);border:none;color:var(--text2);border-radius:6px;padding:4px 8px;font-size:13px;cursor:pointer">▶</button>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:14px;padding:10px 12px;background:var(--bg2);border-radius:10px">
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Opening</div>
+            <div style="font-size:15px;font-weight:700" id="week-opening">£0</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">In</div>
+            <div style="font-size:15px;font-weight:700;color:var(--green)" id="week-total-in">£0</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Out</div>
+            <div style="font-size:15px;font-weight:700;color:var(--red)" id="week-total-out">£0</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Closing</div>
+            <div style="font-size:15px;font-weight:700" id="week-closing">£0</div>
+          </div>
+        </div>
+        <div id="week-forecast-list"></div>
       </div>
 
       <div class="card">
@@ -652,11 +692,24 @@ input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner
 <div class="modal-overlay" id="set-balance-modal" onclick="closeModalOnBg(event,'set-balance-modal')">
   <div class="modal">
     <div class="modal-handle"></div>
-    <h2>Set Current Balance</h2>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Enter exactly what's in your bank account right now. The app will track everything from this point forward.</p>
+    <h2>Override Balance</h2>
+
+    <!-- Current calculated balance -->
+    <div id="balance-modal-current" style="background:var(--bg2);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;display:none">
+      <div style="color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">App currently thinks balance is</div>
+      <div id="balance-modal-calc" style="font-size:20px;font-weight:800"></div>
+    </div>
+
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Open your banking app, check the exact balance, and enter it here. Everything will be tracked from this point forward.</p>
+
+    <!-- Reconcile now shortcut -->
+    <button onclick="reconcileNow()" style="width:100%;background:rgba(56,189,248,0.12);border:1.5px solid rgba(56,189,248,0.3);color:var(--accent);border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:14px">
+      📍 Reconcile right now — set date to today
+    </button>
+
     <div class="form-row">
       <div class="input-wrap">
-        <label>Amount in account (£)</label>
+        <label>Actual bank balance (£)</label>
         <input type="number" id="opening-balance-amount" placeholder="0.00" step="0.01">
       </div>
       <div class="input-wrap">
@@ -664,7 +717,8 @@ input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner
         <input type="date" id="opening-balance-date">
       </div>
     </div>
-    <button class="btn btn-primary" style="margin-top:6px" onclick="saveOpeningBalance()">Save Balance</button>
+    <button class="btn btn-primary" style="margin-top:6px;width:100%" onclick="saveOpeningBalance()">💾 Save &amp; Override</button>
+    <button class="btn btn-danger" style="margin-top:8px;width:100%" onclick="clearOpeningBalance()">🗑 Clear balance (reset to zero-based)</button>
   </div>
 </div>
 
@@ -1131,6 +1185,136 @@ function renderHome() {
 
   // Schedule SW reminder check
   scheduleReminders();
+
+  // Week forecast uses current balance as opening
+  renderWeekForecast(balance);
+}
+
+// ── WEEK FORECAST ─────────────────────────────────────────────────
+function renderWeekForecast(openingBalance) {
+  const base = today();
+  // Start of the offset week (Monday)
+  const dayOfWeek = base.getDay() === 0 ? 6 : base.getDay() - 1; // Mon=0
+  const weekStart = new Date(base);
+  weekStart.setDate(base.getDate() - dayOfWeek + weekOffset * 7);
+  weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+
+  // Label
+  const opts = { day: 'numeric', month: 'short' };
+  document.getElementById('week-label').textContent =
+    weekStart.toLocaleDateString('en-GB', opts) + ' – ' + weekEnd.toLocaleDateString('en-GB', opts);
+
+  // For offset weeks we estimate opening balance by projecting from current balance
+  // We need to walk day-by-day from today to weekStart to compute opening
+  let openingEst = openingBalance !== undefined ? openingBalance : 0;
+
+  // If looking at a future/past week, project the balance from today to weekStart
+  if (weekOffset !== 0) {
+    const direction = weekOffset > 0 ? 1 : -1;
+    const projStart = weekOffset > 0 ? new Date(base) : new Date(weekEnd);
+    projStart.setDate(projStart.getDate() + direction);
+    const projEnd = weekOffset > 0 ? new Date(weekStart) : new Date(base);
+    projEnd.setDate(projEnd.getDate() - (weekOffset > 0 ? 1 : 0));
+
+    const projFrom = weekOffset > 0 ? new Date(base) : new Date(weekEnd);
+    const projTo   = weekOffset > 0 ? new Date(weekStart) : new Date(base);
+    let cur = new Date(weekOffset > 0 ? base : weekEnd);
+    cur.setDate(cur.getDate() + direction);
+    const stop = weekOffset > 0 ? weekStart : base;
+
+    while ((weekOffset > 0 ? cur < stop : cur >= stop)) {
+      const dStr = fmtDate(cur);
+      getDayEvents(cur, dStr).forEach(ev => {
+        openingEst += ev.type === 'in' ? Number(ev.amount) : -Number(ev.amount);
+      });
+      cur.setDate(cur.getDate() + direction);
+    }
+  }
+
+  // Build 7 days of events for this week
+  let running = openingEst;
+  let totalIn = 0, totalOut = 0;
+  const dayBlocks = [];
+
+  for (let i = 0; i <= 6; i++) {
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
+    const dStr = fmtDate(d);
+    const isToday = dStr === fmtDate(base);
+    const events = getDayEvents(d, dStr);
+    if (events.length === 0) continue;
+
+    const dayIn  = events.filter(e => e.type === 'in').reduce((s,e) => s + Number(e.amount), 0);
+    const dayOut = events.filter(e => e.type === 'out').reduce((s,e) => s + Number(e.amount), 0);
+    totalIn  += dayIn;
+    totalOut += dayOut;
+    running  += dayIn - dayOut;
+
+    const dayLabel = isToday ? 'Today' :
+      d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+
+    const eventRows = events.map(ev => {
+      const isIn = ev.type === 'in';
+      return `<div class="week-event">
+        <span class="week-event-icon">${isIn ? '📥' : '📤'}</span>
+        <span class="week-event-label">${ev.label}</span>
+        <span class="week-event-amount" style="color:${isIn ? 'var(--green)' : 'var(--red)'}">
+          ${isIn ? '+' : '-'}${fmtGBP(ev.amount)}
+        </span>
+      </div>`;
+    }).join('');
+
+    const balColor = running >= 0 ? 'var(--green)' : 'var(--red)';
+    dayBlocks.push(`<div class="week-day">
+      <div class="week-day-header ${isToday ? 'today' : ''}">${dayLabel}${isToday ? ' · Today' : ''}</div>
+      ${eventRows}
+      <div class="week-day-balance" style="color:${balColor}">Balance after: ${fmtGBP(running)}</div>
+    </div>`);
+  }
+
+  const closing = openingEst + totalIn - totalOut;
+  document.getElementById('week-opening').textContent = fmtGBP(openingEst);
+  document.getElementById('week-total-in').textContent = '+' + fmtGBP(totalIn);
+  document.getElementById('week-total-out').textContent = '-' + fmtGBP(totalOut);
+  const closingEl = document.getElementById('week-closing');
+  closingEl.textContent = fmtGBP(closing);
+  closingEl.style.color = closing >= 0 ? 'var(--green)' : 'var(--red)';
+
+  document.getElementById('week-forecast-list').innerHTML = dayBlocks.length
+    ? dayBlocks.join('')
+    : `<div class="empty"><p>No payments in or out this week</p></div>`;
+}
+
+function getDayEvents(d, dStr) {
+  const events = [];
+  // Income
+  db.income.forEach(src => {
+    if (src.freq === 'monthly' && src.day && d.getDate() === src.day) {
+      events.push({ type: 'in', label: src.name, amount: src.amount });
+    } else if (src.freq === 'fourweekly' && src.anchorDate) {
+      const next = nextFourWeeklyDate(src.anchorDate, d);
+      if (fmtDate(next) === dStr) events.push({ type: 'in', label: src.name, amount: src.amount });
+    } else if (src.freq === 'weekly') {
+      if (d.getDay() === (src.weekDay !== undefined ? src.weekDay : 4)) {
+        events.push({ type: 'in', label: src.name, amount: src.amount });
+      }
+    }
+  });
+  // Regular bills (unpaid)
+  db.bills.forEach(b => {
+    if (b.dueDay && d.getDate() === b.dueDay && !isBillPaid(b)) {
+      events.push({ type: 'out', label: b.name, amount: b.amount });
+    }
+  });
+  // One-off bills (unpaid)
+  (db.oneoffs || []).forEach(o => {
+    if (o.date === dStr && !o.paid) {
+      events.push({ type: 'out', label: o.name, amount: o.amount });
+    }
+  });
+  return events;
 }
 
 // ── BILLS ─────────────────────────────────────────────────────────
@@ -1225,6 +1409,9 @@ function deleteBill(id) {
 }
 
 // ── BILLS TAB TOGGLE ─────────────────────────────────────────────
+let weekOffset = 0; // 0 = current week, 1 = next week, etc.
+function shiftWeek(dir) { weekOffset += dir; renderWeekForecast(); }
+
 let billsView = 'regular';
 function setBillsView(v) {
   billsView = v;
@@ -1571,7 +1758,25 @@ function openSetBalanceModal() {
   const ob = db.openingBalance;
   document.getElementById('opening-balance-amount').value = ob ? ob.amount : '';
   document.getElementById('opening-balance-date').value = ob ? ob.date : todayStr();
+
+  // Show what the app currently calculates
+  const heroEl = document.getElementById('hero-balance');
+  const calcEl = document.getElementById('balance-modal-calc');
+  const currentEl = document.getElementById('balance-modal-current');
+  if (heroEl && calcEl) {
+    calcEl.textContent = heroEl.textContent;
+    const val = parseFloat(heroEl.textContent.replace(/[^0-9.-]/g, ''));
+    calcEl.style.color = val >= 0 ? 'var(--green)' : 'var(--red)';
+    currentEl.style.display = 'block';
+  }
+
   openModal('set-balance-modal');
+}
+
+function reconcileNow() {
+  // Snap date to today so tracking restarts from this moment
+  document.getElementById('opening-balance-date').value = todayStr();
+  document.getElementById('opening-balance-amount').focus();
 }
 
 function saveOpeningBalance() {
@@ -1579,6 +1784,14 @@ function saveOpeningBalance() {
   const date = document.getElementById('opening-balance-date').value || todayStr();
   if (isNaN(amount)) { alert('Please enter a valid amount'); return; }
   db.openingBalance = { amount, date };
+  save();
+  closeModal('set-balance-modal');
+  renderHome();
+}
+
+function clearOpeningBalance() {
+  if (!confirm('This removes the opening balance — the app will track from zero. Continue?')) return;
+  db.openingBalance = null;
   save();
   closeModal('set-balance-modal');
   renderHome();
