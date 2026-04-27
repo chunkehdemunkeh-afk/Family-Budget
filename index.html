@@ -958,16 +958,19 @@ function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
 // Returns all payment dates for a 4-weekly income in the given month
 function fourWeeklyDatesInMonth(anchorDate, year, month) {
   if (!anchorDate) return [];
-  const anchor = new Date(anchorDate + 'T12:00:00');
-  const monthStart = new Date(year, month, 1);
-  const monthEnd = new Date(year, month + 1, 0, 23, 59, 59);
-  const msPerDay = 86400000;
-  const diffDays = Math.round((monthStart - anchor) / msPerDay);
-  const nStart = Math.floor(diffDays / 28) - 1;
+  // Parse anchor as LOCAL date components — avoids UTC/BST shift entirely
+  const [ay, am, ad] = anchorDate.split('-').map(Number);
+  // Use noon to safely compare across DST boundary without risk of landing on wrong day
+  const anchorNoon = new Date(ay, am - 1, ad, 12, 0, 0);
+  const monthStartNoon = new Date(year, month, 1, 12, 0, 0);
+  const dayDiff = Math.round((monthStartNoon - anchorNoon) / 86400000);
+  const nStart = Math.floor(dayDiff / 28) - 1;
   const dates = [];
   for (let n = nStart; n <= nStart + 4; n++) {
-    const d = new Date(anchor.getTime() + n * 28 * msPerDay);
-    if (d >= monthStart && d <= monthEnd) dates.push(d);
+    // Use local date constructor: new Date(y, m, d+offset) — JS handles month overflow
+    // AND respects DST automatically. This is the only safe way to add days.
+    const d = new Date(ay, am - 1, ad + n * 28, 12, 0, 0);
+    if (d.getFullYear() === year && d.getMonth() === month) dates.push(d);
   }
   return dates.sort((a, b) => a - b);
 }
@@ -975,12 +978,14 @@ function fourWeeklyDatesInMonth(anchorDate, year, month) {
 // Next occurrence of a 4-weekly payment on or after a given date
 function nextFourWeeklyDate(anchorDate, fromDate) {
   if (!anchorDate) return null;
-  const anchor = new Date(anchorDate + 'T12:00:00');
-  const from = new Date(fromDate); from.setHours(0,0,0,0);
-  const msPerDay = 86400000;
-  const diff = Math.round((from - anchor) / msPerDay);
-  const n = Math.ceil(diff / 28);
-  return new Date(anchor.getTime() + n * 28 * msPerDay);
+  const [ay, am, ad] = anchorDate.split('-').map(Number);
+  // Use noon for both to avoid midnight BST/UTC boundary issues
+  const anchorNoon = new Date(ay, am - 1, ad, 12, 0, 0);
+  const fromNoon = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate(), 12, 0, 0);
+  const dayDiff = Math.round((fromNoon - anchorNoon) / 86400000);
+  const n = Math.ceil(dayDiff / 28);
+  // Local date constructor — correctly handles all DST transitions
+  return new Date(ay, am - 1, ad + n * 28, 12, 0, 0);
 }
 
 // Count how many of a given weekday have occurred in month up to dayOfMonth (or whole month if omitted)
@@ -1294,8 +1299,11 @@ function getDayEvents(d, dStr) {
     if (src.freq === 'monthly' && src.day && d.getDate() === src.day) {
       events.push({ type: 'in', label: src.name, amount: src.amount });
     } else if (src.freq === 'fourweekly' && src.anchorDate) {
-      const next = nextFourWeeklyDate(src.anchorDate, d);
-      if (fmtDate(next) === dStr) events.push({ type: 'in', label: src.name, amount: src.amount });
+      // Use fourWeeklyDatesInMonth — same function used everywhere else, no float comparison issues
+      const monthDates = fourWeeklyDatesInMonth(src.anchorDate, d.getFullYear(), d.getMonth());
+      if (monthDates.some(md => fmtDate(md) === dStr)) {
+        events.push({ type: 'in', label: src.name, amount: src.amount });
+      }
     } else if (src.freq === 'weekly') {
       if (d.getDay() === (src.weekDay !== undefined ? src.weekDay : 4)) {
         events.push({ type: 'in', label: src.name, amount: src.amount });
@@ -1612,22 +1620,22 @@ function renderIncome() {
   const rows = [];
   db.income.forEach(i => {
     if (i.freq === 'fourweekly') {
-      const dates = fourWeeklyDatesInMonth(i.anchorDate, yr, mo);
-      if (dates.length === 0) {
-        // No payment this month — show next upcoming
-        const nextDate = nextFourWeeklyDate(i.anchorDate, now);
-        const dStr = fmtDate(nextDate);
-        const msUntil = nextDate - now;
-        const daysAway = Math.ceil(msUntil / 86400000);
-        rows.push({ src: i, dateStr: dStr, received: false, daysAway, isExtra: false });
-      } else {
-        dates.forEach((d, idx) => {
-          const dStr = fmtDate(d);
-          const received = d <= now;
-          const daysAway = received ? 0 : Math.ceil((d - now) / 86400000);
-          rows.push({ src: i, dateStr: dStr, received, daysAway, isExtra: idx > 0 });
+      // Always show the NEXT upcoming payment (on or after today)
+      const nextDate = nextFourWeeklyDate(i.anchorDate, now);
+      const dStr = fmtDate(nextDate);
+      const isToday = dStr === fmtDate(now);
+      const daysAway = isToday ? 0 : Math.ceil((nextDate - now) / 86400000);
+      rows.push({ src: i, dateStr: dStr, received: isToday, daysAway, isExtra: false });
+
+      // If the next payment's month also has a second payment (double-payment month), show that too
+      const nextYr = nextDate.getFullYear(), nextMo = nextDate.getMonth();
+      const sameMonthDates = fourWeeklyDatesInMonth(i.anchorDate, nextYr, nextMo);
+      sameMonthDates
+        .filter(d => fmtDate(d) !== dStr && d > nextDate)
+        .forEach(d => {
+          rows.push({ src: i, dateStr: fmtDate(d), received: false,
+            daysAway: Math.ceil((d - now) / 86400000), isExtra: true });
         });
-      }
     } else {
       rows.push({ src: i, dateStr: null, received: null, daysAway: null, isExtra: false });
     }
@@ -1637,7 +1645,7 @@ function renderIncome() {
   function incomeRowKey(row) {
     const { src, daysAway, received } = row;
     if (src.freq === 'fourweekly') {
-      return received ? 1000 : (daysAway ?? 1000);
+      return received ? 0 : (daysAway ?? 1000); // TODAY sorts first
     }
     if (src.freq === 'weekly') {
       const targetDay = src.weekDay !== undefined ? src.weekDay : 4;
