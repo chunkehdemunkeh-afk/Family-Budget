@@ -1091,15 +1091,19 @@ function renderHome() {
 
   const incomeReceived = incomeReceivedByDate(fmtDate(now));
 
-  // Bills remaining (unpaid) and paid
-  const billsRemaining = db.bills.filter(b => !isBillPaid(b)).reduce((s, b) => s + Number(b.amount), 0);
-  const billsPaid = db.bills.filter(b => isBillPaid(b)).reduce((s, b) => s + Number(b.amount), 0);
-
   // Opening balance
   const ob = db.openingBalance;
   const obDate = ob ? ob.date : null;
   const obAmount = ob ? Number(ob.amount) : 0;
   const hasOB = ob && ob.amount !== null && ob.amount !== undefined;
+
+  // When an OB is set, only count bills whose due day is on/after the OB date —
+  // bills due before it are already captured in the OB amount itself.
+  const obDay = hasOB && obDate ? parseInt(obDate.split('-')[2]) : 0;
+  function billAfterOB(b) { return !hasOB || !b.dueDay || b.dueDay >= obDay; }
+
+  const billsRemaining = db.bills.filter(b => !isBillPaid(b) && billAfterOB(b)).reduce((s, b) => s + Number(b.amount), 0);
+  const billsPaid = db.bills.filter(b => isBillPaid(b) && billAfterOB(b)).reduce((s, b) => s + Number(b.amount), 0);
 
   // Show/hide the "set balance" prompt
   const promptEl = document.getElementById('opening-balance-prompt');
